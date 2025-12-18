@@ -12,7 +12,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ro">
-      <body>{children}</body>
+      <body className="min-h-screen bg-kosi-bg text-kosi-text">
+        {children}
+      </body>
     </html>
   );
 }

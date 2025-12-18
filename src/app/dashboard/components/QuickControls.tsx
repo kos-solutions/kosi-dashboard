@@ -8,77 +8,84 @@ export default function QuickControls() {
   const [quietMode, setQuietMode] = useState(false);
   const [storyMode, setStoryMode] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-function handleCommand(command: string) {
- handleCommand("SET_MODE_SILENT");
-handleCommand("SET_MODE_STORY");
-handleCommand("END_SESSION");
 
-  setFeedback("Comandă trimisă");
-  setTimeout(() => setFeedback(null), 2000);
-}
+  function trigger(command: string) {
+    sendCommand(command);
+    setFeedback("Comandă trimisă");
+    setTimeout(() => setFeedback(null), 2000);
+  }
+
   return (
-    <div className="bg-white rounded-xl p-6 shadow">
+    <div className="bg-kosi-surface rounded-xl p-6 shadow-sm border border-gray-100">
       <h3 className="text-lg font-semibold mb-4">Control rapid</h3>
 
-      {/* Quiet Mode */}
+      {/* Pauză liniștită */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-gray-700">Quiet mode</span>
+        <span className="text-sm text-kosi-muted">
+          Pauză liniștită
+        </span>
         <button
           onClick={() => {
             const next = !quietMode;
             setQuietMode(next);
-            sendCommand("SET_MODE_SILENT");
+            trigger("SET_MODE_SILENT");
           }}
-          className={`px-3 py-1 rounded-full text-sm ${
+          className={`px-3 py-1 rounded-full text-sm transition ${
             quietMode
-              ? "bg-gray-800 text-white"
-              : "bg-gray-200 text-gray-700"
+              ? "bg-kosi-primary text-white"
+              : "bg-gray-100 text-kosi-muted"
           }`}
         >
-          {quietMode ? "Activ" : "Dezactivat"}
+          {quietMode ? "Activă" : "Dezactivată"}
         </button>
       </div>
 
-      {/* Story Mode */}
+      {/* Mod poveste */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm text-gray-700">Story mode</span>
+        <span className="text-sm text-kosi-muted">
+          Mod poveste
+        </span>
         <button
           onClick={() => {
             const next = !storyMode;
             setStoryMode(next);
-            sendCommand("SET_MODE_STORY");
+            trigger("SET_MODE_STORY");
           }}
-          className={`px-3 py-1 rounded-full text-sm ${
+          className={`px-3 py-1 rounded-full text-sm transition ${
             storyMode
-              ? "bg-blue-600 text-white"
-              : "bg-gray-200 text-gray-700"
+              ? "bg-kosi-primary text-white"
+              : "bg-gray-100 text-kosi-muted"
           }`}
         >
           {storyMode ? "Activ" : "Dezactivat"}
         </button>
-		{feedback && (
-  <div className="mt-3 text-sm text-green-600">
-    {feedback}
-  </div>
-)}
-
       </div>
 
-      {/* Actions */}
+      {feedback && (
+        <div className="mb-4 text-sm text-kosi-success">
+          {feedback}
+        </div>
+      )}
+
+      {/* Acțiuni */}
       <div className="border-t pt-4 space-y-2">
         <button
-          onClick={() => sendCommand("ALLOW_INTERACTION_WINDOW")}
-          className="w-full text-sm py-2 rounded-lg bg-gray-100 text-gray-700"
+          onClick={() => trigger("ALLOW_INTERACTION_WINDOW")}
+          className="w-full text-sm py-2 rounded-lg bg-gray-100 text-kosi-text"
         >
-          Pauză interacțiune – 30 min
+          Pauză pentru următoarele 30 de minute
         </button>
 
         <button
-          onClick={() => sendCommand("END_SESSION")}
-          className="w-full text-sm py-2 rounded-lg bg-red-100 text-red-600"
+          onClick={() => trigger("END_SESSION")}
+          className="w-full text-sm py-2 rounded-lg bg-kosi-secondary text-kosi-text"
         >
-          Oprește interacțiunea acum
+          Oprește pentru moment
         </button>
+
+        <p className="text-xs text-kosi-muted mt-2">
+          Interacțiunea începe atunci când copilul vorbește cu KOSI.
+        </p>
       </div>
     </div>
   );
