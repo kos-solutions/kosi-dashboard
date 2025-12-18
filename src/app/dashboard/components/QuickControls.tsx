@@ -7,7 +7,15 @@ export default function QuickControls() {
   const { sendCommand } = useDashboard();
   const [quietMode, setQuietMode] = useState(false);
   const [storyMode, setStoryMode] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+function handleCommand(command: string) {
+ handleCommand("SET_MODE_SILENT");
+handleCommand("SET_MODE_STORY");
+handleCommand("END_SESSION");
 
+  setFeedback("Comandă trimisă");
+  setTimeout(() => setFeedback(null), 2000);
+}
   return (
     <div className="bg-white rounded-xl p-6 shadow">
       <h3 className="text-lg font-semibold mb-4">Control rapid</h3>
@@ -48,6 +56,12 @@ export default function QuickControls() {
         >
           {storyMode ? "Activ" : "Dezactivat"}
         </button>
+		{feedback && (
+  <div className="mt-3 text-sm text-green-600">
+    {feedback}
+  </div>
+)}
+
       </div>
 
       {/* Actions */}

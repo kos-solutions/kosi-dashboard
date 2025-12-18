@@ -1,10 +1,18 @@
 "use client";
 import { useDashboard } from "@/lib/DashboardContext";
+import { useEffect, useState } from "react";
 
 
 export default function StatusCard() {
   const { state } = useDashboard();
-console.log("StatusCard render", state.deviceStatus);
+const [highlight, setHighlight] = useState(false);
+
+useEffect(() => {
+  setHighlight(true);
+  const t = setTimeout(() => setHighlight(false), 1500);
+  return () => clearTimeout(t);
+}, [state.deviceStatus]);
+
 
   const deviceStatusText =
     state.deviceStatus === "active"
