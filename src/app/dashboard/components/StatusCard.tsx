@@ -1,45 +1,46 @@
+"use client";
+
+import { useDashboard } from "@/lib/DashboardContext";
+
 export default function StatusCard() {
-  const child = {
-    name: "Andrei",
-    status: "online",
-    emotion: "calm",
-    lastActivity: "acum 12 minute",
-    lastSession: "Poveste (8 min)",
-    alert: null, // sau string
-  };
+  const { state } = useDashboard();
+
+  const deviceStatusText =
+    state.deviceStatus === "active"
+      ? "KOSI este activ"
+      : state.deviceStatus === "idle"
+      ? "KOSI este în repaus"
+      : "KOSI este offline";
+
+  const moodText =
+    state.mood === "calm"
+      ? "Calm 😊"
+      : state.mood === "neutral"
+      ? "Neutru 😐"
+      : "Agitat 😟";
 
   return (
     <div className="bg-white rounded-xl p-6 shadow">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">{child.name}</h2>
-        <span className="text-sm text-green-600">
-          {child.status === "online" ? "Online" : "Offline"}
-        </span>
+        <h2 className="text-lg font-semibold">{state.childName}</h2>
+        <span className="text-sm text-gray-600">{deviceStatusText}</span>
       </div>
 
-      {/* Emotion */}
       <div className="mb-4">
-        <p className="text-sm text-gray-500">Stare emoțională</p>
-        <p className="text-lg">
-          {child.emotion === "calm" && "Calm 😊"}
-          {child.emotion === "neutral" && "Neutru 😐"}
-          {child.emotion === "agitated" && "Agitat 😟"}
-        </p>
+        <p className="text-sm text-gray-500">Stare generală</p>
+        <p className="text-lg font-medium">{moodText}</p>
       </div>
 
-      {/* Activity */}
       <div className="mb-4 text-sm text-gray-600">
-        <p>Ultima activitate: {child.lastActivity}</p>
-        <p>Ultima sesiune: {child.lastSession}</p>
+        <p>Ultima interacțiune: {state.lastInteraction}</p>
+        <p>Ultimul mod: {state.lastMode}</p>
       </div>
 
-      {/* Alert */}
       <div className="text-sm">
-        {child.alert ? (
-          <p className="text-red-600">⚠️ {child.alert}</p>
+        {state.hasAlert ? (
+          <p className="text-red-600">⚠️ Atenție necesară</p>
         ) : (
-          <p className="text-green-600">Nu sunt alerte active</p>
+          <p className="text-green-600">Totul este în regulă</p>
         )}
       </div>
     </div>
