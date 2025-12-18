@@ -30,21 +30,29 @@ const DashboardContext = createContext<DashboardContextType | null>(null);
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<DashboardState>(initialState);
 
-  function sendCommand(command: string) {
-    console.log("COMMAND:", command);
+ function sendCommand(command: string) {
+  console.log("COMMAND FIRED:", command);
+
+  setState((s) => {
+    const next = { ...s };
 
     if (command === "SET_MODE_SILENT") {
-      setState((s) => ({ ...s, deviceStatus: "idle" }));
+      next.deviceStatus = "idle";
     }
 
     if (command === "SET_MODE_STORY") {
-      setState((s) => ({ ...s, lastMode: "Poveste" }));
+      next.lastMode = "Poveste";
     }
 
     if (command === "END_SESSION") {
-      setState((s) => ({ ...s, deviceStatus: "offline" }));
+      next.deviceStatus = "offline";
     }
-  }
+
+    console.log("NEW STATE:", next);
+    return next;
+  });
+}
+
 
   return (
     <DashboardContext.Provider value={{ state, sendCommand }}>
