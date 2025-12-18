@@ -1,9 +1,10 @@
 "use client";
-
 import { useDashboard } from "@/lib/DashboardContext";
+
 
 export default function StatusCard() {
   const { state } = useDashboard();
+console.log("StatusCard render", state.deviceStatus);
 
   const deviceStatusText =
     state.deviceStatus === "active"

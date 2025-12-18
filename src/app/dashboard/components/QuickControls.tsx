@@ -1,13 +1,12 @@
 "use client";
-import { sendCommand } from "@/lib/mockApi";
-import { useDashboard } from "@/lib/DashboardContext";
 
 import { useState } from "react";
+import { useDashboard } from "@/lib/DashboardContext";
 
 export default function QuickControls() {
+  const { sendCommand } = useDashboard();
   const [quietMode, setQuietMode] = useState(false);
   const [storyMode, setStoryMode] = useState(false);
-const { sendCommand } = useDashboard();
 
   return (
     <div className="bg-white rounded-xl p-6 shadow">
@@ -15,16 +14,13 @@ const { sendCommand } = useDashboard();
 
       {/* Quiet Mode */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-gray-700">
-          Quiet mode
-        </span>
+        <span className="text-sm text-gray-700">Quiet mode</span>
         <button
-		onClick={() => {
-  setQuietMode(!quietMode);
-  sendCommand("SET_MODE_SILENT");
-}}
-
-          onClick={() => setQuietMode(!quietMode)}
+          onClick={() => {
+            const next = !quietMode;
+            setQuietMode(next);
+            sendCommand("SET_MODE_SILENT");
+          }}
           className={`px-3 py-1 rounded-full text-sm ${
             quietMode
               ? "bg-gray-800 text-white"
@@ -37,17 +33,13 @@ const { sendCommand } = useDashboard();
 
       {/* Story Mode */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm text-gray-700">
-          Story mode
-        </span>
+        <span className="text-sm text-gray-700">Story mode</span>
         <button
-		onClick={() => {
-  setQuietMode(!quietMode);
-  sendCommand("SET_MODE_SILENT");
-}}onClick={() => sendCommand("END_SESSION")}
-
-
-          onClick={() => setStoryMode(!storyMode)}
+          onClick={() => {
+            const next = !storyMode;
+            setStoryMode(next);
+            sendCommand("SET_MODE_STORY");
+          }}
           className={`px-3 py-1 rounded-full text-sm ${
             storyMode
               ? "bg-blue-600 text-white"
@@ -60,11 +52,17 @@ const { sendCommand } = useDashboard();
 
       {/* Actions */}
       <div className="border-t pt-4 space-y-2">
-        <button className="w-full text-sm py-2 rounded-lg bg-gray-100 text-gray-700">
+        <button
+          onClick={() => sendCommand("ALLOW_INTERACTION_WINDOW")}
+          className="w-full text-sm py-2 rounded-lg bg-gray-100 text-gray-700"
+        >
           Pauză interacțiune – 30 min
         </button>
 
-        <button className="w-full text-sm py-2 rounded-lg bg-red-100 text-red-600">
+        <button
+          onClick={() => sendCommand("END_SESSION")}
+          className="w-full text-sm py-2 rounded-lg bg-red-100 text-red-600"
+        >
           Oprește interacțiunea acum
         </button>
       </div>
