@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true
-};
+  output: 'standalone',  // ← IMPORTANT pentru Railway!
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
