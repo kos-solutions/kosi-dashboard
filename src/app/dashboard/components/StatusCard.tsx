@@ -1,64 +1,132 @@
 "use client";
-import { useDashboard } from "@/lib/DashboardContext";
+
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function StatusCard() {
-  const { state } = useDashboard();
-  const [highlight, setHighlight] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState<any>(null);
+  const [lastActivity, setLastActivity] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setHighlight(true);
-    const t = setTimeout(() => setHighlight(false), 1500);
-    return () => clearTimeout(t);
-  }, [state.deviceStatus]);
+    fetchDeviceInfo();
+  }, []);
 
-  const deviceStatusText =
-    state.deviceStatus === "active"
-      ? "KOSI este alături de copil"
-      : state.deviceStatus === "idle"
-      ? "KOSI așteaptă o nouă interacțiune"
-      : "KOSI este oprit momentan";
+  async function fetchDeviceInfo() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  const moodText =
-    state.mood === "calm"
-      ? "Calm 😊"
-      : state.mood === "neutral"
-      ? "Neutru 😐"
-      : "Agitat 😟";
+      // Get paired device
+      const { data: pairedDevices } = await supabase
+        .from('parent_devices')
+        .select(`
+          device_id,
+          devices (
+            id,
+            child_name,
+            language,
+            pairing_code
+          )
+        `)
+        .eq('parent_id', user.id)
+        .limit(1)
+        .single();
+
+      if (pairedDevices?.devices) {
+        setDeviceInfo(pairedDevices.devices);
+
+        // Get last activity
+        const { data: lastAct } = await supabase
+          .from('activity_log')
+          .select('*')
+          .eq('device_id', pairedDevices.devices.id)
+          .order('timestamp', { ascending: false })
+          .limit(1)
+          .single();
+
+        setLastActivity(lastAct);
+      }
+    } catch (error) {
+      console.error('Error fetching device info:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl p-6 shadow">
+        <h3 className="text-lg font-semibold mb-4">Copilul tău</h3>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!deviceInfo) {
+    return (
+      <div className="bg-white rounded-xl p-6 shadow">
+        <h3 className="text-lg font-semibold mb-4">Copilul tău</h3>
+        <div className="text-center py-8">
+          <p className="text-gray-500 mb-4">Niciun dispozitiv conectat</p>
+          <a
+            href="/pairing"
+            className="text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            Conectează un dispozitiv →
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const getMoodEmoji = () => {
+    // Simple logic based on last activity
+    if (!lastActivity) return "😊";
+    
+    const hoursSinceActivity = (Date.now() - new Date(lastActivity.timestamp).getTime()) / (1000 * 60 * 60);
+    
+    if (hoursSinceActivity < 1) return "😊";
+    if (hoursSinceActivity < 6) return "🙂";
+    return "😴";
+  };
+
+  const getLastActivityText = () => {
+    if (!lastActivity) return "Nicio activitate încă";
+    
+    const event = lastActivity.event_data?.title || lastActivity.event_type;
+    return `Povești`; // Simple for now
+  };
 
   return (
-    <div
-      className={`bg-kosi-surface rounded-xl p-6 shadow-sm border border-gray-100 transition-all ${
-        highlight ? "ring-2 ring-kosi-primary/40" : ""
-      }`}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">{state.childName}</h2>
-        <span className="text-sm text-kosi-muted">
-          {deviceStatusText}
-        </span>
+    <div className="bg-white rounded-xl p-6 shadow">
+      <h3 className="text-lg font-semibold mb-4">Copilul tău</h3>
+
+      <div className="text-center mb-4">
+        <div className="text-6xl mb-2">{getMoodEmoji()}</div>
+        <div className="text-xl font-semibold text-gray-900">
+          {deviceInfo.child_name || "Copil"}
+        </div>
       </div>
 
-      <div className="mb-4">
-        <p className="text-sm text-kosi-muted">Stare generală</p>
-        <p className="text-lg font-medium">{moodText}</p>
+      <div className="space-y-3 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-600">Stare generală</span>
+          <span className="font-medium text-green-600">Calm {getMoodEmoji()}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-gray-600">Ultima activitate</span>
+          <span className="font-medium text-gray-900">{getLastActivityText()}</span>
+        </div>
       </div>
 
-      <div className="mb-4 text-sm text-kosi-muted">
-        <p>Copilul a interacționat recent cu KOSI</p>
-        <p>Ultimul mod folosit: {state.lastMode}</p>
-      </div>
-
-      <div className="text-sm">
-        {state.hasAlert ? (
-          <p className="text-kosi-warning">
-            Este nevoie de atenția părintelui
-          </p>
-        ) : (
-          <p className="text-kosi-success">
-            Nu sunt motive de îngrijorare
-          </p>
-        )}
+      <div className="mt-4 pt-4 border-t">
+        <p className="text-xs text-gray-500 text-center">
+          Nu sunt motive de îngrijorare
+        </p>
       </div>
     </div>
   );

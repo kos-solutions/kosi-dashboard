@@ -1,92 +1,78 @@
 "use client";
 
 import { useState } from "react";
-import { useDashboard } from "@/lib/DashboardContext";
 
 export default function QuickControls() {
-  const { sendCommand } = useDashboard();
-  const [quietMode, setQuietMode] = useState(false);
-  const [storyMode, setStoryMode] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  function trigger(command: string) {
-    sendCommand(command);
-    setFeedback("Comandă trimisă");
-    setTimeout(() => setFeedback(null), 2000);
-  }
+  const [pauseTimer, setPauseTimer] = useState(30);
 
   return (
-    <div className="bg-kosi-surface rounded-xl p-6 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-xl p-6 shadow">
       <h3 className="text-lg font-semibold mb-4">Control rapid</h3>
 
-      {/* Pauză liniștită */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-kosi-muted">
-          Pauză liniștită
-        </span>
-        <button
-          onClick={() => {
-            const next = !quietMode;
-            setQuietMode(next);
-            trigger("SET_MODE_SILENT");
-          }}
-          className={`px-3 py-1 rounded-full text-sm transition ${
-            quietMode
-              ? "bg-kosi-primary text-white"
-              : "bg-gray-100 text-kosi-muted"
-          }`}
-        >
-          {quietMode ? "Activă" : "Dezactivată"}
+      <div className="space-y-3">
+        {/* Pause Button */}
+        <button className="w-full py-3 px-4 rounded-lg bg-orange-50 hover:bg-orange-100 transition text-left flex items-center justify-between group">
+          <span className="text-gray-700 font-medium">Pauză liniștită</span>
+          <span className="text-gray-500 group-hover:text-orange-600">Dezactivat</span>
+        </button>
+
+        {/* Story Mode */}
+        <button className="w-full py-3 px-4 rounded-lg bg-blue-50 hover:bg-blue-100 transition text-left flex items-center justify-between group">
+          <span className="text-gray-700 font-medium">Mod poveste</span>
+          <span className="text-gray-500 group-hover:text-blue-600">Dezactivat</span>
         </button>
       </div>
 
-      {/* Mod poveste */}
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm text-kosi-muted">
-          Mod poveste
-        </span>
-        <button
-          onClick={() => {
-            const next = !storyMode;
-            setStoryMode(next);
-            trigger("SET_MODE_STORY");
-          }}
-          className={`px-3 py-1 rounded-full text-sm transition ${
-            storyMode
-              ? "bg-kosi-primary text-white"
-              : "bg-gray-100 text-kosi-muted"
-          }`}
-        >
-          {storyMode ? "Activ" : "Dezactivat"}
-        </button>
-      </div>
-
-      {feedback && (
-        <div className="mb-4 text-sm text-kosi-success">
-          {feedback}
+      {/* Pause Timer */}
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <div className="text-sm text-gray-600 mb-2">
+          Pauză pentru următoarele {pauseTimer} de minute
         </div>
-      )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setPauseTimer(15)}
+            className={`flex-1 py-2 px-3 rounded text-sm ${
+              pauseTimer === 15
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            15 min
+          </button>
+          <button
+            onClick={() => setPauseTimer(30)}
+            className={`flex-1 py-2 px-3 rounded text-sm ${
+              pauseTimer === 30
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            30 min
+          </button>
+          <button
+            onClick={() => setPauseTimer(60)}
+            className={`flex-1 py-2 px-3 rounded text-sm ${
+              pauseTimer === 60
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            60 min
+          </button>
+        </div>
+      </div>
 
-      {/* Acțiuni */}
-      <div className="border-t pt-4 space-y-2">
-        <button
-          onClick={() => trigger("ALLOW_INTERACTION_WINDOW")}
-          className="w-full text-sm py-2 rounded-lg bg-gray-100 text-kosi-text"
-        >
-          Pauză pentru următoarele 30 de minute
-        </button>
-
-        <button
-          onClick={() => trigger("END_SESSION")}
-          className="w-full text-sm py-2 rounded-lg bg-kosi-secondary text-kosi-text"
-        >
-          Oprește pentru moment
-        </button>
-
-        <p className="text-xs text-kosi-muted mt-2">
-          Interacțiunea începe atunci când copilul vorbește cu KOSI.
+      {/* Info */}
+      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+        <p className="text-xs text-gray-600">
+          ℹ️ Interacțiunile încep atunci când copilul vorbește cu KOSI.
         </p>
       </div>
+
+      {/* Action Button */}
+      <button className="w-full mt-4 py-3 px-4 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-semibold hover:from-orange-500 hover:to-orange-600 transition">
+        Oprește pentru moment
+      </button>
     </div>
   );
 }
