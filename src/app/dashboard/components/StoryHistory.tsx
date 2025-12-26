@@ -7,7 +7,7 @@ interface Story {
   id: string;
   request: string;
   story_text: string;
-  created_at: string;
+  timestamp: string;
   duration_seconds: number;
 }
 
@@ -24,7 +24,7 @@ export default function StoryHistory() {
       .from("activity_events")
       .select("*")
       .eq("event_type", "story_completed")
-      .order("created_at", { ascending: false })
+      .order("timestamp", { ascending: false })
       .limit(20);
 
     if (data) {
@@ -33,7 +33,7 @@ export default function StoryHistory() {
           id: event.id,
           request: event.event_data?.request || "Poveste",
           story_text: event.event_data?.story_text || "",
-          created_at: event.created_at,
+          timestamp: event.timestamp,
           duration_seconds: event.event_data?.duration || 0,
         }))
       );
@@ -83,7 +83,7 @@ export default function StoryHistory() {
               <div className="flex-1">
                 <p className="font-medium text-sm">📖 {story.request}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formatDate(story.created_at)} •{" "}
+                  {formatDate(story.timestamp)} •{" "}
                   {Math.round(story.duration_seconds / 60)} min
                 </p>
               </div>

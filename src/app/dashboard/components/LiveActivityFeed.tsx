@@ -84,7 +84,7 @@ export default function LiveActivityFeed() {
                   {getEventText(event)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formatDistanceToNow(new Date(event.created_at), {
+                  {formatDistanceToNow(new Date(event.timestamp), {
                     addSuffix: true,
                     locale: ro,
                   })}
