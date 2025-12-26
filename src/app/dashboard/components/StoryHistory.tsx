@@ -20,23 +20,44 @@ export default function StoryHistory() {
   }, []);
 
   async function loadStories() {
-    const { data } = await supabase
-      .from("activity_events")
-      .select("*")
-      .eq("event_type", "story_completed")
-      .order("timestamp", { ascending: false })
-      .limit(20);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    if (data) {
-      setStories(
-        data.map((event) => ({
-          id: event.id,
-          request: event.event_data?.request || "Poveste",
-          story_text: event.event_data?.story_text || "",
-          timestamp: event.timestamp,
-          duration_seconds: event.event_data?.duration || 0,
-        }))
-      );
+      // Get paired device
+      const { data: pairedDevice } = await supabase
+        .from('parent_devices')
+        .select('device_id')
+        .eq('parent_id', user.id)
+        .limit(1)
+        .single();
+
+      if (!pairedDevice) return;
+
+      // Get stories from activity_log
+      const { data } = await supabase
+        .from("activity_log")
+        .select("*")
+        .eq("device_id", pairedDevice.device_id)
+        .eq("event_type", "story_played")
+        .order("timestamp", { ascending: false })
+        .limit(20);
+
+      console.log('Story history data:', data);
+
+      if (data) {
+        setStories(
+          data.map((event) => ({
+            id: event.id,
+            request: event.event_data?.title || "Poveste",
+            story_text: event.event_data?.story_text || "",
+            timestamp: event.timestamp,
+            duration_seconds: event.duration_seconds || 0,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Error loading stories:', error);
     }
   }
 
