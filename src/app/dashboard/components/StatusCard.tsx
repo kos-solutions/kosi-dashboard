@@ -18,7 +18,7 @@ export default function StatusCard() {
       if (!user) return;
 
       // Get paired device
-      const { data: pairedDevices } = await supabase
+      const { data: pairedDevices, error: deviceError } = await supabase
         .from('parent_devices')
         .select(`
           device_id,
@@ -33,14 +33,23 @@ export default function StatusCard() {
         .limit(1)
         .single();
 
-      if (pairedDevices?.devices) {
-        setDeviceInfo(pairedDevices.devices);
+      if (deviceError || !pairedDevices) {
+        console.log('No paired device found');
+        setLoading(false);
+        return;
+      }
+
+      // Type assertion for nested devices object
+      const device = (pairedDevices as any).devices;
+      
+      if (device) {
+        setDeviceInfo(device);
 
         // Get last activity
         const { data: lastAct } = await supabase
           .from('activity_log')
           .select('*')
-          .eq('device_id', pairedDevices.devices.id)
+          .eq('device_id', device.id)
           .order('timestamp', { ascending: false })
           .limit(1)
           .single();
