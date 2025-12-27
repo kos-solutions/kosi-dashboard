@@ -15,14 +15,16 @@ export default function StatusCard() {
   async function fetchDeviceInfo() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-      // Get paired device
-      const { data: pairedDevices, error: deviceError } = await supabase
+      const { data: pairedData, error: pairError } = await supabase
         .from('parent_devices')
         .select(`
           device_id,
-          devices (
+          devices!inner (
             id,
             child_name,
             language,
@@ -33,28 +35,28 @@ export default function StatusCard() {
         .limit(1)
         .single();
 
-      if (deviceError || !pairedDevices) {
-        console.log('No paired device found');
+      if (pairError || !pairedData) {
+        console.log('No paired device:', pairError);
         setLoading(false);
         return;
       }
 
-      // Type assertion for nested devices object
-      const device = (pairedDevices as any).devices;
+      const deviceRecord: any = pairedData.devices;
       
-      if (device) {
-        setDeviceInfo(device);
+      if (deviceRecord && deviceRecord.id) {
+        setDeviceInfo(deviceRecord);
 
-        // Get last activity
-        const { data: lastAct } = await supabase
+        const { data: activity } = await supabase
           .from('activity_log')
           .select('*')
-          .eq('device_id', device.id)
+          .eq('device_id', deviceRecord.id)
           .order('timestamp', { ascending: false })
           .limit(1)
           .single();
 
-        setLastActivity(lastAct);
+        if (activity) {
+          setLastActivity(activity);
+        }
       }
     } catch (error) {
       console.error('Error fetching device info:', error);
@@ -92,7 +94,6 @@ export default function StatusCard() {
   }
 
   const getMoodEmoji = () => {
-    // Simple logic based on last activity
     if (!lastActivity) return "😊";
     
     const hoursSinceActivity = (Date.now() - new Date(lastActivity.timestamp).getTime()) / (1000 * 60 * 60);
@@ -104,9 +105,7 @@ export default function StatusCard() {
 
   const getLastActivityText = () => {
     if (!lastActivity) return "Nicio activitate încă";
-    
-    const event = lastActivity.event_data?.title || lastActivity.event_type;
-    return `Povești`; // Simple for now
+    return "Povești";
   };
 
   return (
