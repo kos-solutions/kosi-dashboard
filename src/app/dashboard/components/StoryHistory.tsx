@@ -50,7 +50,7 @@ export default function StoryHistory() {
           data.map((event) => ({
             id: event.id,
             request: event.event_data?.title || "Poveste",
-            story_text: event.event_data?.story_text || "",
+            story_text: event.event_data?.story_text || "Povestea nu este disponibilă.",
             timestamp: event.timestamp,
             duration_seconds: event.duration_seconds || 0,
           }))
