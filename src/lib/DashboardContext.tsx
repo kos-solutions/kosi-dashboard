@@ -5,129 +5,115 @@ import { supabase } from "./supabaseClient";
 
 type DeviceStatus = "active" | "idle" | "offline";
 type Mood = "calm" | "neutral" | "agitated";
-type ActivityType = "story" | "meditation" | "game";
 
 interface DashboardState {
-  deviceId: string | null; // ⭐ Adăugat pentru validarea TypeScript
+  deviceId: string | null;
   childName: string;
   deviceStatus: DeviceStatus;
   mood: Mood;
-  lastMode: string;
-  hasAlert: boolean;
-  currentActivity: ActivityType | null;
-  isListening: boolean;
-  isSpeaking: boolean;
-  currentStory: string | null;
-  sessionStartTime: Date | null;
+  lastActivity: { type: string; detail: string; time: string } | null;
 }
 
 interface DashboardContextType {
   state: DashboardState;
   sendCommand: (command: string) => void;
-  sessionHistory: any[];
+  activities: any[];
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DashboardState>({
-    deviceId: null, // ⭐ Inițializat cu null
-    childName: "Copilul tău",
+    deviceId: null,
+    childName: "Miriam",
     deviceStatus: "idle",
     mood: "calm",
-    lastMode: "Povești",
-    hasAlert: false,
-    currentActivity: null,
-    isListening: false,
-    isSpeaking: false,
-    currentStory: null,
-    sessionStartTime: null,
+    lastActivity: null,
   });
-
-  const [sessionHistory, setSessionHistory] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => {
-  async function fetchDeviceInfo() {
-    // 1. Încercăm să luăm datele direct din tabelul 'devices' unde știm că există Miriam
-    const { data: device, error } = await supabase
-      .from("devices")
-      .select("id, name")
-      .limit(1)
-      .maybeSingle();
+    async function initDashboard() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    if (device) {
-      console.log("Dispozitiv găsit:", device.id);
-      setState(prev => ({
-        ...prev,
-        deviceId: device.id,
-        childName: device.name || "Miriam"
-      }));
-    } else {
-      console.log("Nu am găsit niciun dispozitiv în tabelul 'devices'");
+      // 1. Căutăm dispozitivul asociat acestui părinte
+      const { data: device } = await supabase
+        .from("devices")
+        .select("id, name")
+        .limit(1)
+        .maybeSingle();
+
+      if (device) {
+        setState(prev => ({ ...prev, deviceId: device.id, childName: device.name || "Miriam" }));
+        fetchLatestActivities(device.id);
+      }
     }
-  }
 
-  fetchDeviceInfo();
-  
-  // Păstrăm și subscripția real-time pentru update-uri de status
-  const channel = supabase
-    .channel("kosi-updates")
-    .on("postgres_changes", { event: "*", schema: "public", table: "device_sessions" }, 
-      (payload) => handleDeviceUpdate(payload.new)
-    )
-    .subscribe();
-
-  return () => { supabase.removeChannel(channel); };
-}, []);
-
-  function handleDeviceUpdate(data: any) {
-    setState((prev) => ({
-      ...prev,
-      deviceId: data.device_id, // ⭐ Mapăm device_id din tabel în starea noastră
-      deviceStatus: data.status,
-      isListening: data.is_listening || false,
-      isSpeaking: data.is_speaking || false,
-      currentActivity: data.current_activity,
-      sessionStartTime: data.session_start ? new Date(data.session_start) : null,
-    }));
-  }
-
-  function handleActivityEvent(event: any) {
-    if (event.event_type === "story_requested") {
-      setState((prev) => ({ ...prev, currentActivity: "story", lastMode: "Povești" }));
-    } else if (event.event_type === "story_completed") {
-      setState((prev) => ({ ...prev, currentStory: event.story_text }));
-    } else if (event.event_type === "alert") {
-      setState((prev) => ({ ...prev, hasAlert: true, mood: "agitated" }));
+    async function fetchLatestActivities(deviceId: string) {
+      const { data } = await supabase
+        .from("device_logs")
+        .select("*")
+        .eq("device_id", deviceId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      
+      if (data && data.length > 0) {
+        setActivities(data);
+        setState(prev => ({
+          ...prev,
+          lastActivity: {
+            type: data[0].activity_type,
+            detail: data[0].detail,
+            time: new Date(data[0].created_at).toLocaleTimeString()
+          }
+        }));
+      }
     }
-    setSessionHistory((prev) => [event, ...prev].slice(0, 50));
-  }
+
+    initDashboard();
+
+    // Real-time subscription pentru activitate nouă
+    const channel = supabase
+      .channel("live-activity")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "device_logs" }, 
+        (payload) => {
+          setActivities(prev => [payload.new, ...prev].slice(0, 10));
+          setState(prev => ({
+            ...prev,
+            lastActivity: {
+              type: payload.new.activity_type,
+              detail: payload.new.detail,
+              time: "Chiar acum"
+            }
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   async function sendCommand(command: string) {
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !state.deviceId) return;
 
-      await supabase.from("parent_commands").insert({
-        user_id: session.session.user.id,
-        command_type: command,
-        created_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("Error sending command:", error);
-    }
+    await supabase.from("parent_commands").insert({
+      device_id: state.deviceId,
+      user_id: user.id,
+      command_type: command
+    });
   }
 
   return (
-    <DashboardContext.Provider value={{ state, sendCommand, sessionHistory }}>
+    <DashboardContext.Provider value={{ state, sendCommand, activities }}>
       {children}
     </DashboardContext.Provider>
   );
 }
 
-export function useDashboard() {
+export const useDashboard = () => {
   const context = useContext(DashboardContext);
   if (!context) throw new Error("useDashboard must be used within DashboardProvider");
   return context;
-}
-//add
+};

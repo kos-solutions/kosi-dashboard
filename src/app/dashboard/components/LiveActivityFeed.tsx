@@ -1,155 +1,89 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { formatDistanceToNow } from "date-fns";
-import { ro } from "date-fns/locale";
+import { BookOpen, Palette, Music, Gamepad2, Clock, Activity } from 'lucide-react'
+import { useDashboard } from '@/lib/DashboardContext'
 
-interface Activity {
-  id: string;
-  event_type: string;
-  event_data: any;
-  timestamp: string;
-  language: string;
+// Configurația vizuală pentru fiecare tip de activitate
+const activityStyles: any = {
+  story_played: { icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Poveste' },
+  DRAW: { icon: Palette, color: 'text-orange-600', bg: 'bg-orange-50', label: 'Desen' },
+  MUSIC: { icon: Music, color: 'text-pink-600', bg: 'bg-pink-50', label: 'Muzică' },
+  GAME: { icon: Gamepad2, color: 'text-green-600', bg: 'bg-green-50', label: 'Joc' },
+  default: { icon: Activity, color: 'text-slate-600', bg: 'bg-slate-50', label: 'Activitate' }
 }
 
 export default function LiveActivityFeed() {
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { activities } = useDashboard()
 
-  useEffect(() => {
-    fetchActivities();
-    
-    // Real-time subscription
-    const channel = supabase
-      .channel('activity-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'activity_log'
-        },
-        (payload) => {
-          console.log('New activity:', payload);
-          setActivities(prev => [payload.new as Activity, ...prev].slice(0, 10));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  async function fetchActivities() {
+  // Helper pentru a extrage textul detaliat din JSON-ul evenimentului
+  const getDetailText = (act: any) => {
     try {
-      const { data, error } = await supabase
-        .from('activity_log')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(10);
-
-      if (error) {
-        console.error('Error fetching activities:', error);
-        return;
-      }
-
-      console.log('Fetched activities:', data);
-      setActivities(data || []);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
+      // Dacă event_data e string JSON, îl parsăm
+      const data = typeof act.event_data === 'string' 
+        ? JSON.parse(act.event_data) 
+        : act.event_data;
+      
+      // Returnăm titlul sau detaliul, în funcție de tip
+      return data.title || data.detail || 'Activitate nouă';
+    } catch (e) {
+      return 'Detalii indisponibile';
     }
-  }
-
-  function getEventIcon(eventType: string) {
-    switch (eventType) {
-      case "story_played":
-        return "📖";
-      case "story_requested":
-        return "📚";
-      case "story_completed":
-        return "✅";
-      case "meditation_started":
-        return "🧘";
-      case "game_started":
-        return "🎮";
-      case "alert":
-        return "⚠️";
-      default:
-        return "•";
-    }
-  }
-
-  function getEventText(event: Activity) {
-    switch (event.event_type) {
-      case "story_played":
-        return `A ascultat povestea: "${event.event_data?.title || "..."}"`;
-      case "story_requested":
-        return `A cerut o poveste: "${event.event_data?.request || "..."}"`;
-      case "story_completed":
-        return "A ascultat o poveste completă";
-      case "meditation_started":
-        return "A început o sesiune de liniștire";
-      case "alert":
-        return event.event_data?.message || "Eveniment care necesită atenție";
-      default:
-        return event.event_type;
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-xl p-6 shadow">
-        <h3 className="text-lg font-semibold mb-4">Activitate Live</h3>
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        </div>
-      </div>
-    );
   }
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Activitate Live</h3>
-        <span className="flex items-center gap-2 text-sm text-green-600">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-          </span>
-          Live
+    <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+          <Activity className="w-5 h-5 text-indigo-500" />
+          Activitate Live
+        </h3>
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
         </span>
       </div>
-
-      {activities.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          <p>Nicio activitate încă</p>
-          <p className="text-sm mt-2">Activitățile vor apărea aici în timp real</p>
-        </div>
-      ) : (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {activities.map((event) => (
-            <div
-              key={event.id}
-              className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition"
-            >
-              <span className="text-2xl">{getEventIcon(event.event_type)}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900">{getEventText(event)}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {formatDistanceToNow(new Date(event.timestamp), {
-                    addSuffix: true,
-                    locale: ro,
-                  })}
-                </p>
-              </div>
+      
+      <div className="space-y-4 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
+        {activities.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+              <Activity className="w-8 h-8 text-slate-300" />
             </div>
-          ))}
-        </div>
-      )}
+            <p className="italic">Așteptăm prima aventură a Miriam-ei...</p>
+          </div>
+        ) : (
+          activities.map((act) => {
+            const style = activityStyles[act.event_type] || activityStyles.default
+            const detailText = getDetailText(act);
+            const time = new Date(act.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            return (
+              <div key={act.id} className="group flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100 cursor-default">
+                <div className="flex items-center gap-4 w-full">
+                  <div className={`p-3 rounded-2xl ${style.bg} ${style.color} group-hover:scale-110 transition-transform shadow-sm`}>
+                    <style.icon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-800 leading-tight mb-1 truncate">
+                      {style.label}: <span className="text-slate-600 font-medium">{detailText}</span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-slate-400 flex items-center gap-1 font-medium bg-white px-2 py-0.5 rounded-full border border-slate-100 inline-block">
+                        <Clock className="w-3 h-3" /> {time}
+                      </p>
+                      {act.duration_seconds && (
+                        <p className="text-xs text-slate-400 font-medium">
+                          • {Math.round(act.duration_seconds / 60)} min
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
     </div>
-  );
+  )
 }
