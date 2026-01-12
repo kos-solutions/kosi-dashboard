@@ -47,40 +47,38 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [sessionHistory, setSessionHistory] = useState<any[]>([]);
 
   useEffect(() => {
-    // Fetch inițial pentru a popula ID-ul dispozitivului
-    async function fetchInitialSession() {
-      const { data, error } = await supabase
-        .from("device_sessions")
-        .select("*")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+  async function fetchDeviceInfo() {
+    // 1. Încercăm să luăm datele direct din tabelul 'devices' unde știm că există Miriam
+    const { data: device, error } = await supabase
+      .from("devices")
+      .select("id, name")
+      .limit(1)
+      .maybeSingle();
 
-      if (data) {
-        handleDeviceUpdate(data);
-      }
+    if (device) {
+      console.log("Dispozitiv găsit:", device.id);
+      setState(prev => ({
+        ...prev,
+        deviceId: device.id,
+        childName: device.name || "Miriam"
+      }));
+    } else {
+      console.log("Nu am găsit niciun dispozitiv în tabelul 'devices'");
     }
+  }
 
-    fetchInitialSession();
+  fetchDeviceInfo();
+  
+  // Păstrăm și subscripția real-time pentru update-uri de status
+  const channel = supabase
+    .channel("kosi-updates")
+    .on("postgres_changes", { event: "*", schema: "public", table: "device_sessions" }, 
+      (payload) => handleDeviceUpdate(payload.new)
+    )
+    .subscribe();
 
-    const channel = supabase
-      .channel("kosi-device-updates")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "device_sessions" },
-        (payload) => handleDeviceUpdate(payload.new)
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "activity_events" },
-        (payload) => handleActivityEvent(payload.new)
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  return () => { supabase.removeChannel(channel); };
+}, []);
 
   function handleDeviceUpdate(data: any) {
     setState((prev) => ({

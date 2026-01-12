@@ -52,9 +52,20 @@ export default function VoiceLabPage() {
   }
 
   const uploadVoice = async () => {
-    if (!audioBlob || !state.deviceId) return
-    
-    setIsUploading(true)
+  console.log("Începere upload. DeviceId:", state.deviceId);
+  
+  if (!audioBlob) {
+    toast.error("Înregistrează audio mai întâi!");
+    return;
+  }
+
+  if (!state.deviceId) {
+    toast.error("Eroare: Nu am detectat ID-ul dispozitivului Miriam. Verifică conexiunea.");
+    console.error("DeviceId este NULL. Verifică DashboardContext.");
+    return;
+  }
+
+  setIsUploading(true);
     const reader = new FileReader()
     reader.readAsDataURL(audioBlob)
     reader.onloadend = async () => {
