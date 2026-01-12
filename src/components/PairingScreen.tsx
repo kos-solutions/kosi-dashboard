@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
@@ -9,7 +9,32 @@ export default function PairingScreen() {
   const [childName, setChildName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
+
+  // Check authentication on mount
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+      setCheckingAuth(false)
+    }
+    checkAuth()
+  }, [router])
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Se verifică autentificarea...</p>
+        </div>
+      </div>
+    )
+  }
 
   async function handlePairing(e: React.FormEvent) {
     e.preventDefault()

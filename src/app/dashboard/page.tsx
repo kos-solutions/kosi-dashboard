@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { DashboardProvider } from '@/lib/DashboardContext'
+
+// Componentele tale originale
 import StatusCard from './components/StatusCard'
 import QuickControls from './components/QuickControls'
 import ActivitySummary from './components/ActivitySummary'
@@ -13,13 +15,16 @@ import WeeklyReport from './components/WeeklyReport'
 import LiveActivityFeed from './components/LiveActivityFeed'
 import StoryHistory from './components/StoryHistory'
 
+// ⭐ Noua componentă pentru Voce
+import VoiceCloneCard from './components/VoiceCloneCard'
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
   useEffect(() => {
-    // Check auth
+    // Verificare autentificare
     supabase.auth.getUser().then(({ data, error }) => {
       if (error || !data.user) {
         router.push('/login')
@@ -52,7 +57,7 @@ export default function DashboardPage() {
               <p className="text-gray-600 mt-1">Bun venit, {user?.email}</p>
             </div>
             
-            {/* Pair Device Button */}
+            {/* Buton Pairing */}
             <button
               onClick={() => router.push('/pairing')}
               className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2"
@@ -67,19 +72,21 @@ export default function DashboardPage() {
 
         {/* Dashboard Grid */}
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {/* Coloana 1 - Status & Controls */}
+          
+          {/* Coloana 1 - Status, Voce & Control */}
           <div className="space-y-6">
             <StatusCard />
+            <VoiceCloneCard /> {/* ⭐ Am adăugat Voice Lab aici */}
             <QuickControls />
           </div>
 
-          {/* Coloana 2 - Activity & Feed */}
+          {/* Coloana 2 - Activitate & Feed */}
           <div className="space-y-6">
             <ActivitySummary />
             <LiveActivityFeed />
           </div>
 
-          {/* Coloana 3 - Reports & History */}
+          {/* Coloana 3 - Rapoarte & Istoric */}
           <div className="space-y-6 lg:col-span-2 xl:col-span-1">
             <WeeklyReport />
             <StoryHistory />
