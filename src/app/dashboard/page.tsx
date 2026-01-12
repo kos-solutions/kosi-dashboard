@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { DashboardProvider } from '@/lib/DashboardContext'
 
 // Componentele tale originale
 import StatusCard from './components/StatusCard'
@@ -46,53 +45,52 @@ export default function DashboardPage() {
     )
   }
 
+  // DashboardProvider a fost mutat în layout.tsx pentru a fi disponibil global
   return (
-    <DashboardProvider>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-        {/* Header */}
-        <div className="max-w-7xl mx-auto mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">KOSI Dashboard</h1>
-              <p className="text-gray-600 mt-1">Bun venit, {user?.email}</p>
-            </div>
-            
-            {/* Buton Pairing */}
-            <button
-              onClick={() => router.push('/pairing')}
-              className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              Conectează Dispozitiv
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      {/* Header */}
+      <div className="max-w-7xl mx-auto mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">KOSI Dashboard</h1>
+            <p className="text-gray-600 mt-1">Bun venit, {user?.email}</p>
           </div>
-        </div>
-
-        {/* Dashboard Grid */}
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           
-          {/* Coloana 1 - Status, Voce & Control */}
-          <div className="space-y-6">
-            <StatusCard />
-            <VoiceCloneCard /> {/* ⭐ Am adăugat Voice Lab aici */}
-            <QuickControls />
-          </div>
-
-          {/* Coloana 2 - Activitate & Feed */}
-          <div className="space-y-6">
-            <ActivitySummary />
-            <LiveActivityFeed />
-          </div>
-
-          {/* Coloana 3 - Rapoarte & Istoric */}
-          <div className="space-y-6 lg:col-span-2 xl:col-span-1">
-            <WeeklyReport />
-            <StoryHistory />
-          </div>
+          {/* Buton Pairing */}
+          <button
+            onClick={() => router.push('/pairing')}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            Conectează Dispozitiv
+          </button>
         </div>
       </div>
-    </DashboardProvider>
+
+      {/* Dashboard Grid */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        {/* Coloana 1 - Status, Voce & Control */}
+        <div className="space-y-6">
+          <StatusCard />
+          <VoiceCloneCard /> {/* ⭐ Componenta pentru clonare voce */}
+          <QuickControls />
+        </div>
+
+        {/* Coloana 2 - Activitate & Feed */}
+        <div className="space-y-6">
+          <ActivitySummary />
+          <LiveActivityFeed />
+        </div>
+
+        {/* Coloana 3 - Rapoarte & Istoric */}
+        <div className="space-y-6 lg:col-span-2 xl:col-span-1">
+          <WeeklyReport />
+          <StoryHistory />
+        </div>
+      </div>
+    </div>
   )
 }
