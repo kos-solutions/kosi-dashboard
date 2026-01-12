@@ -5,16 +5,14 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import { Sparkles } from 'lucide-react'
 
-// Componentele tale originale
 import StatusCard from './components/StatusCard'
 import QuickControls from './components/QuickControls'
 import ActivitySummary from './components/ActivitySummary'
 import WeeklyReport from './components/WeeklyReport'
 import LiveActivityFeed from './components/LiveActivityFeed'
 import StoryHistory from './components/StoryHistory'
-
-// ⭐ Noua componentă pentru Voce
 import VoiceCloneCard from './components/VoiceCloneCard'
 
 export default function DashboardPage() {
@@ -23,7 +21,6 @@ export default function DashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Verificare autentificare
     supabase.auth.getUser().then(({ data, error }) => {
       if (error || !data.user) {
         router.push('/login')
@@ -36,57 +33,47 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Se încarcă...</p>
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+          <p className="text-slate-500 font-medium animate-pulse">Se pregătește magia...</p>
         </div>
       </div>
     )
   }
 
-  // DashboardProvider a fost mutat în layout.tsx pentru a fi disponibil global
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">KOSI Dashboard</h1>
-            <p className="text-gray-600 mt-1">Bun venit, {user?.email}</p>
-          </div>
-          
-          {/* Buton Pairing */}
-          <button
-            onClick={() => router.push('/pairing')}
-            className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-            Conectează Dispozitiv
-          </button>
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Header - Salut personalizat fără repetiția numelui aplicației */}
+      <header className="flex flex-col gap-1">
+        <div className="flex items-center gap-2 text-indigo-600 font-bold tracking-wide uppercase text-xs">
+          <Sparkles className="w-4 h-4" />
+          Centru de Comandă
         </div>
-      </div>
+        <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+          Bună, {user?.email?.split('@')[0]}!
+        </h1>
+        <p className="text-slate-500 text-lg">Miriam te așteaptă cu o poveste nouă astăzi.</p>
+      </header>
 
-      {/* Dashboard Grid */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      {/* Dashboard Grid principal */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Coloana 1 - Status, Voce & Control */}
-        <div className="space-y-6">
+        {/* Coloana de Stare & Control (Stânga) */}
+        <div className="lg:col-span-4 space-y-8">
           <StatusCard />
-          <VoiceCloneCard /> {/* ⭐ Componenta pentru clonare voce */}
+          <VoiceCloneCard />
           <QuickControls />
         </div>
 
-        {/* Coloana 2 - Activitate & Feed */}
-        <div className="space-y-6">
-          <ActivitySummary />
+        {/* Coloana de Activitate Live (Mijloc) */}
+        <div className="lg:col-span-5 space-y-8">
           <LiveActivityFeed />
+          <ActivitySummary />
         </div>
 
-        {/* Coloana 3 - Rapoarte & Istoric */}
-        <div className="space-y-6 lg:col-span-2 xl:col-span-1">
+        {/* Coloana de Rapoarte & Istoric (Dreapta) */}
+        <div className="lg:col-span-3 space-y-8">
           <WeeklyReport />
           <StoryHistory />
         </div>

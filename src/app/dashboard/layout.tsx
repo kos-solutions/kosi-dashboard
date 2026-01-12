@@ -1,5 +1,5 @@
-import Header from "./components/Header";
-import { DashboardProvider } from "@/lib/DashboardContext"; // ⭐ Importă Provider-ul
+import { DashboardProvider } from "@/lib/DashboardContext";
+import Sidebar from "./components/Sidebar";
 
 export default function DashboardLayout({
   children,
@@ -7,10 +7,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <DashboardProvider> {/* ⭐ Împachetează totul aici */}
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <main className="p-6 max-w-7xl mx-auto">{children}</main>
+    <DashboardProvider>
+      <div className="flex min-h-screen bg-[#F8FAFC]">
+        {/* Navigația laterală fixă */}
+        <Sidebar />
+        
+        {/* Zona principală de conținut */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-6xl mx-auto px-8 py-10 lg:px-12">
+            {children}
+          </div>
+        </main>
       </div>
     </DashboardProvider>
   );
