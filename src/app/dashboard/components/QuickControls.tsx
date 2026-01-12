@@ -1,78 +1,61 @@
-"use client";
+'use client'
 
-import { useState } from "react";
+import { Power, Volume2, Pause, Play } from 'lucide-react'
+import { useDashboard } from '@/lib/DashboardContext'
+import { toast } from 'react-hot-toast'
 
 export default function QuickControls() {
-  const [pauseTimer, setPauseTimer] = useState(30);
+  const { sendCommand, state } = useDashboard()
+
+  const handleCommand = async (type: string, label: string) => {
+    try {
+      await sendCommand(type)
+      toast.success(`Comandă trimisă: ${label}`)
+    } catch (e) {
+      toast.error("Eroare la trimiterea comenzii.")
+    }
+  }
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow">
-      <h3 className="text-lg font-semibold mb-4">Control rapid</h3>
-
-      <div className="space-y-3">
-        {/* Pause Button */}
-        <button className="w-full py-3 px-4 rounded-lg bg-orange-50 hover:bg-orange-100 transition text-left flex items-center justify-between group">
-          <span className="text-gray-700 font-medium">Pauză liniștită</span>
-          <span className="text-gray-500 group-hover:text-orange-600">Dezactivat</span>
+    <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+      <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+        <Power className="w-5 h-5 text-indigo-500" />
+        Control Dispozitiv
+      </h3>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <button 
+          onClick={() => handleCommand('PAUSE_APP', 'Pauză Aplicație')}
+          className="flex flex-col items-center gap-3 p-4 bg-slate-50 hover:bg-amber-50 hover:text-amber-700 rounded-2xl transition-all border border-transparent hover:border-amber-100 group"
+        >
+          <Pause className="w-6 h-6 text-slate-400 group-hover:text-amber-500" />
+          <span className="text-xs font-bold uppercase tracking-widest">Pauză Activă</span>
         </button>
 
-        {/* Story Mode */}
-        <button className="w-full py-3 px-4 rounded-lg bg-blue-50 hover:bg-blue-100 transition text-left flex items-center justify-between group">
-          <span className="text-gray-700 font-medium">Mod poveste</span>
-          <span className="text-gray-500 group-hover:text-blue-600">Dezactivat</span>
+        <button 
+          onClick={() => handleCommand('RESUME_APP', 'Reluare Aplicație')}
+          className="flex flex-col items-center gap-3 p-4 bg-slate-50 hover:bg-green-50 hover:text-green-700 rounded-2xl transition-all border border-transparent hover:border-green-100 group"
+        >
+          <Play className="w-6 h-6 text-slate-400 group-hover:text-green-500" />
+          <span className="text-xs font-bold uppercase tracking-widest">Reluare</span>
+        </button>
+
+        <button 
+          onClick={() => handleCommand('SET_VOLUME_HIGH', 'Volum Maxim')}
+          className="flex flex-col items-center gap-3 p-4 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 rounded-2xl transition-all border border-transparent hover:border-blue-100 group"
+        >
+          <Volume2 className="w-6 h-6 text-slate-400 group-hover:text-blue-500" />
+          <span className="text-xs font-bold uppercase tracking-widest">Volum +</span>
+        </button>
+
+        <button 
+          onClick={() => handleCommand('STOP_STORY', 'Oprire Poveste')}
+          className="flex flex-col items-center gap-3 p-4 bg-slate-50 hover:bg-red-50 hover:text-red-700 rounded-2xl transition-all border border-transparent hover:border-red-100 group"
+        >
+          <Power className="w-6 h-6 text-slate-400 group-hover:text-red-500" />
+          <span className="text-xs font-bold uppercase tracking-widest">Stop Imediat</span>
         </button>
       </div>
-
-      {/* Pause Timer */}
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <div className="text-sm text-gray-600 mb-2">
-          Pauză pentru următoarele {pauseTimer} de minute
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPauseTimer(15)}
-            className={`flex-1 py-2 px-3 rounded text-sm ${
-              pauseTimer === 15
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            15 min
-          </button>
-          <button
-            onClick={() => setPauseTimer(30)}
-            className={`flex-1 py-2 px-3 rounded text-sm ${
-              pauseTimer === 30
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            30 min
-          </button>
-          <button
-            onClick={() => setPauseTimer(60)}
-            className={`flex-1 py-2 px-3 rounded text-sm ${
-              pauseTimer === 60
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            60 min
-          </button>
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-xs text-gray-600">
-          ℹ️ Interacțiunile încep atunci când copilul vorbește cu KOSI.
-        </p>
-      </div>
-
-      {/* Action Button */}
-      <button className="w-full mt-4 py-3 px-4 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-semibold hover:from-orange-500 hover:to-orange-600 transition">
-        Oprește pentru moment
-      </button>
     </div>
-  );
+  )
 }
