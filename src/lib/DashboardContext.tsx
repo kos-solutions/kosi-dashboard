@@ -7,7 +7,9 @@ type DeviceStatus = "active" | "idle" | "offline";
 type Mood = "calm" | "neutral" | "agitated";
 type ActivityType = "story" | "meditation" | "game";
 
+// ⭐ Am adăugat deviceId aici pentru a fi recunoscut de TypeScript
 interface DashboardState {
+  deviceId: string | null; 
   childName: string;
   deviceStatus: DeviceStatus;
   mood: Mood;
@@ -30,6 +32,7 @@ const DashboardContext = createContext<DashboardContextType | null>(null);
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DashboardState>({
+    deviceId: null, // ⭐ Inițializat cu null
     childName: "Copilul tău",
     deviceStatus: "idle",
     mood: "calm",
@@ -44,44 +47,35 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const [sessionHistory, setSessionHistory] = useState<any[]>([]);
 
-  // Real-time subscription pentru device status
   useEffect(() => {
+    // 1. Fetch inițial pentru ultima sesiune
+    async function fetchInitialState() {
+      const { data: session } = await supabase
+        .from("device_sessions")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (session) {
+        handleDeviceUpdate(session);
+      }
+    }
+
+    fetchInitialState();
+
+    // 2. Real-time subscripție
     const channel = supabase
-      .channel("kosi-device-updates")
+      .channel("dashboard-updates")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "device_sessions",
-        },
-        (payload) => {
-          console.log("Device update:", payload);
-          handleDeviceUpdate(payload.new);
-        }
+        { event: "INSERT", schema: "public", table: "device_events" },
+        (payload) => handleNewEvent(payload.new)
       )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  // Real-time subscription pentru activity events
-  useEffect(() => {
-    const channel = supabase
-      .channel("kosi-activity-events")
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "activity_events",
-        },
-        (payload) => {
-          console.log("New activity:", payload);
-          handleActivityEvent(payload.new);
-        }
+        { event: "UPDATE", schema: "public", table: "device_sessions" },
+        (payload) => handleDeviceUpdate(payload.new)
       )
       .subscribe();
 
@@ -93,16 +87,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   function handleDeviceUpdate(data: any) {
     setState((prev) => ({
       ...prev,
+      deviceId: data.device_id, // ⭐ Salvăm ID-ul dispozitivului în stare
       deviceStatus: data.status,
-      isListening: data.is_listening || false,
-      isSpeaking: data.is_speaking || false,
-      currentActivity: data.current_activity,
-      sessionStartTime: data.session_start ? new Date(data.session_start) : null,
+      sessionStartTime: data.started_at ? new Date(data.started_at) : null,
     }));
   }
 
-  function handleActivityEvent(event: any) {
-    // Update state based on activity type
+  function handleNewEvent(event: any) {
+    // Logica ta originală de procesare evenimente
     if (event.event_type === "story_requested") {
       setState((prev) => ({
         ...prev,
@@ -122,18 +114,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       }));
     }
 
-    // Add to session history
     setSessionHistory((prev) => [event, ...prev].slice(0, 50));
   }
 
   async function sendCommand(command: string) {
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session) return;
+      const { data: authSession } = await supabase.auth.getSession();
+      if (!authSession?.session) return;
 
-      // Send command to device via Supabase
       await supabase.from("parent_commands").insert({
-        user_id: session.session.user.id,
+        user_id: authSession.session.user.id,
         command_type: command,
         created_at: new Date().toISOString(),
       });
@@ -154,7 +144,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 export function useDashboard() {
   const context = useContext(DashboardContext);
   if (!context) {
-    throw new Error("useDashboard must be used within DashboardProvider");
+    throw new Error("useDashboard must be used within a DashboardProvider");
   }
   return context;
 }
