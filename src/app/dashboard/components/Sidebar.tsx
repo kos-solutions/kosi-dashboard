@@ -17,7 +17,7 @@ export default function Sidebar() {
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Voice Lab', href: '/dashboard/voice-lab', icon: Mic2 },
-    { name: 'Pairing', href: '/pairing', icon: LinkIcon },
+    { name: 'Pairing', href: '/dashboard/pairing', icon: LinkIcon }, // ✨ Actualizat aici
     { name: 'Setări', href: '/dashboard/settings', icon: Settings },
   ]
 
@@ -28,7 +28,6 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen sticky top-0 border-r border-slate-800">
-      {/* Logo Unic - Apare doar aici */}
       <div className="p-8">
         <Link href="/dashboard" className="flex items-center gap-3 group">
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-indigo-500/20">
@@ -38,7 +37,6 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      {/* Meniu Navigație */}
       <nav className="flex-1 px-4 space-y-2">
         {menuItems.map((item) => {
           const isActive = pathname === item.href
@@ -59,7 +57,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Logout button la baza sidebar-ului */}
       <div className="p-4 mt-auto border-t border-slate-800">
         <button
           onClick={handleSignOut}
