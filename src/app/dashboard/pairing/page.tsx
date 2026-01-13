@@ -1,27 +1,95 @@
 'use client'
 
-import { useState } from 'react'
-import { CheckCircle, Link as LinkIcon, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabaseClient'
+import { useRouter } from 'next/navigation'
+import { CheckCircle, Link as LinkIcon, AlertCircle, Loader2, Smartphone } from 'lucide-react'
 import { useDashboard } from '@/lib/DashboardContext'
 
 export default function PairingPage() {
-  const { state } = useDashboard() // Acum va funcționa pentru că e sub /dashboard
+  const { state } = useDashboard()
+  const router = useRouter()
+  
   const [pairingCode, setPairingCode] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
-  // Verificăm dacă dispozitivul este deja asociat în DB
-  if (state.deviceId) {
+  // Verificăm dacă suntem deja conectați
+  useEffect(() => {
+    if (state.deviceId) setSuccess(true)
+  }, [state.deviceId])
+
+  const handlePairing = async () => {
+    if (!pairingCode || pairingCode.length < 4) {
+        setError("Te rog introdu un cod valid.")
+        return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+        // 1. Obținem utilizatorul curent (Părintele)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error("Sesiunea a expirat.")
+
+        // 2. Căutăm dispozitivul în tabelul 'devices' după codul de pairing
+        // (Table 'devices' este cel populat de telefonul Android)
+        const { data: device, error: searchError } = await supabase
+            .from('devices')
+            .select('id, child_name')
+            .eq('pairing_code', pairingCode) 
+            .maybeSingle()
+
+        if (searchError || !device) {
+            throw new Error("Cod incorect! Verifică ecranul robotului Kosi.")
+        }
+
+        console.log("✅ Dispozitiv găsit:", device.id)
+
+        // 3. ✨ INSERT în tabelul de legătură 'parent_devices'
+        // Folosim exact structura ta: parent_id, device_id
+        const { error: linkError } = await supabase
+            .from('parent_devices')
+            .insert({
+                parent_id: user.id,
+                device_id: device.id,
+                // 'paired_at' se completează automat dacă are default, 
+                // sau putem forța: paired_at: new Date().toISOString()
+            })
+
+        if (linkError) {
+            // Dacă primim eroare de duplicat, înseamnă că e deja asociat, deci e OK
+            if (!linkError.message.includes('duplicate') && !linkError.message.includes('unique')) {
+                throw linkError
+            }
+        }
+
+        // 4. Succes!
+        setSuccess(true)
+        setTimeout(() => window.location.href = '/dashboard', 1500)
+
+    } catch (err: any) {
+        console.error("Eroare pairing:", err)
+        setError(err.message || "Eroare la asociere.")
+    } finally {
+        setLoading(false)
+    }
+  }
+
+  if (success || state.deviceId) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in zoom-in">
         <div className="bg-white p-10 rounded-[32px] shadow-xl border border-green-100 text-center max-w-md w-full">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
             <CheckCircle className="w-12 h-12 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Conectat!</h1>
-          <p className="text-slate-500 mb-6">Robotul Kosi este sincronizat cu contul tău.</p>
-          <div className="p-3 bg-slate-50 rounded-xl text-xs font-mono text-slate-400 uppercase tracking-widest">
-            ID: {state.deviceId}
-          </div>
+          <h1 className="text-3xl font-black text-slate-900 mb-2">Conectat!</h1>
+          <p className="text-slate-500 mb-6">Robotul Kosi este acum asociat contului tău.</p>
+          <button onClick={() => router.push('/dashboard')} className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl hover:bg-green-700 transition-all">
+            Către Dashboard
+          </button>
         </div>
       </div>
     )
@@ -29,20 +97,35 @@ export default function PairingPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <div className="bg-white p-10 rounded-[32px] shadow-xl border border-slate-100 max-w-md w-full">
-        <h1 className="text-2xl font-bold mb-6 flex items-center gap-3">
-          <LinkIcon className="text-indigo-600" /> Asociere
-        </h1>
-        <input 
-          type="text" 
-          placeholder="KOSI-1234" 
-          className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-4 uppercase font-mono text-center text-xl"
-          value={pairingCode}
-          onChange={(e) => setPairingCode(e.target.value)}
-        />
-        <button className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all">
-          Conectează Robotul
-        </button>
+      <div className="bg-white p-10 rounded-[32px] shadow-xl border border-slate-100 max-w-md w-full relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight text-center mb-2">Conectare Robot</h1>
+        <p className="text-slate-500 text-center mb-8">Introdu codul de pe ecranul dispozitivului Kosi.</p>
+
+        <div className="space-y-6">
+            <input 
+              type="text" 
+              placeholder="KOSI-XXXX"
+              className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-2xl font-mono font-bold text-center uppercase focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300 text-slate-800"
+              value={pairingCode}
+              onChange={(e) => setPairingCode(e.target.value.toUpperCase())}
+            />
+          
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-4 rounded-xl border border-red-100">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" /> 
+              <span>{error}</span>
+            </div>
+          )}
+
+          <button 
+            disabled={loading || !pairingCode}
+            className="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl hover:bg-indigo-700 transition-all disabled:opacity-50 flex justify-center items-center gap-2 shadow-lg shadow-indigo-200"
+            onClick={handlePairing}
+          >
+            {loading ? <Loader2 className="animate-spin" /> : <><LinkIcon className="w-5 h-5" /> Conectează</>}
+          </button>
+        </div>
       </div>
     </div>
   )

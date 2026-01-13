@@ -3,15 +3,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "./supabaseClient";
 
-type DeviceStatus = "active" | "idle" | "offline";
-type Mood = "calm" | "neutral" | "agitated";
-
 interface DashboardState {
   deviceId: string | null;
   childName: string;
-  deviceStatus: DeviceStatus;
-  mood: Mood;
-  lastActivity: { type: string; detail: string; time: string } | null;
+  deviceStatus: "active" | "idle" | "offline";
+  lastActivity: any | null;
 }
 
 interface DashboardContextType {
@@ -27,9 +23,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     deviceId: null,
     childName: "Miriam",
     deviceStatus: "idle",
-    mood: "calm",
     lastActivity: null,
   });
+
   const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => {
@@ -37,62 +33,73 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Căutăm dispozitivul asociat acestui părinte
-      const { data: device } = await supabase
-        .from("devices")
-        .select("id, name")
+      console.log("Caut dispozitiv pentru părintele:", user.id);
+
+      // 1. Căutăm legătura în tabela 'parent_devices'
+      // Aceasta este tabela ta de legătură
+      const { data: link } = await supabase
+        .from("parent_devices")
+        .select("device_id")
+        .eq("parent_id", user.id)
         .limit(1)
         .maybeSingle();
 
-      if (device) {
-        setState(prev => ({ ...prev, deviceId: device.id, childName: device.name || "Miriam" }));
-        fetchLatestActivities(device.id);
-      }
-    }
+      if (link && link.device_id) {
+        console.log("Legătură găsită către device:", link.device_id);
 
-    async function fetchLatestActivities(deviceId: string) {
-      const { data } = await supabase
-        .from("device_logs")
-        .select("*")
-        .eq("device_id", deviceId)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      
-      if (data && data.length > 0) {
-        setActivities(data);
-        setState(prev => ({
-          ...prev,
-          lastActivity: {
-            type: data[0].activity_type,
-            detail: data[0].detail,
-            time: new Date(data[0].created_at).toLocaleTimeString()
-          }
-        }));
+        // 2. Luăm detaliile dispozitivului (numele copilului) din tabela 'devices'
+        const { data: device } = await supabase
+            .from("devices")
+            .select("id, child_name")
+            .eq("id", link.device_id)
+            .single();
+            
+        if (device) {
+            setState(prev => ({
+              ...prev,
+              deviceId: device.id,
+              childName: device.child_name || "Miriam"
+            }));
+            
+            // 3. Încărcăm log-urile reale
+            fetchRealActivities(device.id);
+        }
+      } else {
+          console.log("Nu s-a găsit nicio legătură în parent_devices.");
       }
     }
 
     initDashboard();
-
-    // Real-time subscription pentru activitate nouă
-    const channel = supabase
-      .channel("live-activity")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "device_logs" }, 
-        (payload) => {
-          setActivities(prev => [payload.new, ...prev].slice(0, 10));
-          setState(prev => ({
-            ...prev,
-            lastActivity: {
-              type: payload.new.activity_type,
-              detail: payload.new.detail,
-              time: "Chiar acum"
-            }
-          }));
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }, []);
+
+  // Effect separat pentru Real-time odată ce avem ID-ul
+  useEffect(() => {
+      if (!state.deviceId) return;
+
+      const channel = supabase
+        .channel("activity-monitor")
+        .on("postgres_changes", 
+            { event: "INSERT", schema: "public", table: "activity_log", filter: `device_id=eq.${state.deviceId}` }, 
+            (payload) => {
+              setActivities(prev => [payload.new, ...prev].slice(0, 15));
+            }
+        )
+        .subscribe();
+
+      return () => { supabase.removeChannel(channel); };
+  }, [state.deviceId]);
+
+
+  async function fetchRealActivities(deviceId: string) {
+    const { data } = await supabase
+      .from("activity_log")
+      .select("*")
+      .eq("device_id", deviceId)
+      .order("created_at", { ascending: false })
+      .limit(15);
+    
+    if (data) setActivities(data);
+  }
 
   async function sendCommand(command: string) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -101,7 +108,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     await supabase.from("parent_commands").insert({
       device_id: state.deviceId,
       user_id: user.id,
-      command_type: command
+      command_type: command,
     });
   }
 
