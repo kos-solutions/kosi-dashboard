@@ -25,7 +25,7 @@ interface DashboardState {
 interface DashboardContextType {
   state: DashboardState;
   sendCommand: (command: string) => void;
-  activities: any[]; // ✅ Acesta este câmpul pe care îl caută LiveActivityFeed
+  activities: any[];
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -126,23 +126,31 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         "postgres_changes", 
         { event: "*", schema: "public", table: "device_sessions", filter: `device_id=eq.${deviceId}` }, 
         (payload) => {
-            const data = payload.new;
-            setState((prev) => ({
-              ...prev,
-              deviceStatus: data.status || "idle",
-              isListening: data.is_listening || false,
-              isSpeaking: data.is_speaking || false,
-              currentActivity: data.current_activity,
-            }));
+            // ⭐ FIX AICI: Folosim 'as any' pentru a calma TypeScript-ul
+            const data = payload.new as any; 
+            
+            if (data) {
+                setState((prev) => ({
+                  ...prev,
+                  deviceStatus: data.status || "idle",
+                  isListening: data.is_listening || false,
+                  isSpeaking: data.is_speaking || false,
+                  currentActivity: data.current_activity,
+                }));
+            }
         }
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "activity_log", filter: `device_id=eq.${deviceId}` },
         (payload) => {
-          const newAct = payload.new;
-          setActivities(prev => [newAct, ...prev].slice(0, 50));
-          updateLastActivity(newAct);
+          // ⭐ FIX AICI: Folosim 'as any' și aici
+          const newAct = payload.new as any;
+          
+          if (newAct) {
+              setActivities(prev => [newAct, ...prev].slice(0, 50));
+              updateLastActivity(newAct);
+          }
         }
       )
       .subscribe();
@@ -169,7 +177,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ✅ EXPORTUL ESTE AICI
 export function useDashboard() {
   const context = useContext(DashboardContext);
   if (!context) throw new Error("useDashboard must be used within DashboardProvider");
