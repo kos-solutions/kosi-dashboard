@@ -59,7 +59,7 @@ export default function DashboardPage() {
           <div className="xl:col-span-2 bg-white p-10 rounded-[40px] shadow-sm border border-slate-100">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                <Palette className="text-orange-500" /> Galeria Miriam-ei
+                <Palette className="text-orange-500" /> Galerie desene
               </h3>
               <button className="text-indigo-600 font-bold hover:underline">Vezi tot portofoliul</button>
             </div>
