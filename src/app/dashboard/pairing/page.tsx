@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, Link as LinkIcon, AlertCircle, Loader2, Smartphone } from 'lucide-react'
+import { CheckCircle, Link as LinkIcon, AlertCircle, Loader2 } from 'lucide-react'
 import { useDashboard } from '@/lib/DashboardContext'
 
 export default function PairingPage() {
@@ -15,14 +15,25 @@ export default function PairingPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Verificăm dacă suntem deja conectați
+  // Verificăm sesiunea la încărcare
+  useEffect(() => {
+    const checkSession = async () => {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error || !session) {
+            // Dacă nu avem sesiune, redirecționăm la login
+            router.push('/login')
+        }
+    }
+    checkSession()
+  }, [router])
+
   useEffect(() => {
     if (state.deviceId) setSuccess(true)
   }, [state.deviceId])
 
   const handlePairing = async () => {
     if (!pairingCode || pairingCode.length < 4) {
-        setError("Te rog introdu un cod valid.")
+        setError("Te rog introdu un cod valid (ex: KOSI-1234).")
         return
     }
 
@@ -30,12 +41,17 @@ export default function PairingPage() {
     setError(null)
 
     try {
-        // 1. Obținem utilizatorul curent (Părintele)
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) throw new Error("Sesiunea a expirat.")
+        // 1. Verificăm sesiunea curentă
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session?.user) {
+            router.push('/login')
+            throw new Error("Trebuie să fii autentificat.")
+        }
 
-        // 2. Căutăm dispozitivul în tabelul 'devices' după codul de pairing
-        // (Table 'devices' este cel populat de telefonul Android)
+        const userId = session.user.id
+
+        // 2. Căutăm dispozitivul
         const { data: device, error: searchError } = await supabase
             .from('devices')
             .select('id, child_name')
@@ -48,19 +64,15 @@ export default function PairingPage() {
 
         console.log("✅ Dispozitiv găsit:", device.id)
 
-        // 3. ✨ INSERT în tabelul de legătură 'parent_devices'
-        // Folosim exact structura ta: parent_id, device_id
+        // 3. Creăm legătura în parent_devices
         const { error: linkError } = await supabase
             .from('parent_devices')
             .insert({
-                parent_id: user.id,
-                device_id: device.id,
-                // 'paired_at' se completează automat dacă are default, 
-                // sau putem forța: paired_at: new Date().toISOString()
+                parent_id: userId,
+                device_id: device.id
             })
 
         if (linkError) {
-            // Dacă primim eroare de duplicat, înseamnă că e deja asociat, deci e OK
             if (!linkError.message.includes('duplicate') && !linkError.message.includes('unique')) {
                 throw linkError
             }
