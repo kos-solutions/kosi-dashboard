@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "./supabaseClient";
 
+// ... Tipuri existente ...
 type DeviceStatus = "active" | "idle" | "offline";
 type Mood = "calm" | "neutral" | "agitated";
 type ActivityType = "story" | "meditation" | "game";
@@ -20,8 +21,12 @@ interface DashboardState {
   currentStory: string | null;
   sessionStartTime: Date | null;
   lastActivity: { type: string; detail: string; time: string } | null;
+  // ⭐ DATE NOI
+  batteryLevel: number | null;
+  wifiStatus: "strong" | "good" | "weak" | "offline" | "unknown";
 }
 
+// ... Context Type ...
 interface DashboardContextType {
   state: DashboardState;
   sendCommand: (command: string) => void;
@@ -34,7 +39,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DashboardState>({
     deviceId: null,
     childName: "Copilul tău",
-    deviceStatus: "idle", // Default, se va actualiza imediat
+    deviceStatus: "idle",
     mood: "calm",
     lastMode: "Povești",
     hasAlert: false,
@@ -43,7 +48,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     isSpeaking: false,
     currentStory: null,
     sessionStartTime: null,
-    lastActivity: null
+    lastActivity: null,
+    // ⭐ VALORI DEFAULT
+    batteryLevel: null,
+    wifiStatus: "unknown"
   });
 
   const [activities, setActivities] = useState<any[]>([]);
@@ -53,7 +61,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Găsim legătura părinte-dispozitiv
       const { data: link } = await supabase
         .from("parent_devices")
         .select("device_id")
@@ -62,7 +69,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (link && link.device_id) {
-        // 2. Luăm detaliile dispozitivului
         const { data: device } = await supabase
           .from("devices")
           .select("id, child_name")
@@ -70,10 +76,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           .single();
 
         if (device) {
-          // ⭐ FIX 1: Citim și starea curentă a sesiunii (Heartbeat)
+          // Citim starea inițială (inclusiv baterie/wifi)
           const { data: session } = await supabase
             .from("device_sessions")
-            .select("status, last_seen")
+            .select("status, last_seen, battery_level, wifi_status") // ⭐
             .eq("device_id", device.id)
             .maybeSingle();
 
@@ -81,11 +87,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             ...prev,
             deviceId: device.id,
             childName: device.child_name || "Dispozitiv Kosi",
-            // Dacă avem sesiune activă recentă (ex: în ultimul minut), îl punem online
-            deviceStatus: (session?.status as DeviceStatus) || "offline"
+            deviceStatus: (session?.status as DeviceStatus) || "offline",
+            // ⭐ Mapăm datele inițiale
+            batteryLevel: session?.battery_level || null,
+            wifiStatus: session?.wifi_status || "unknown"
           }));
           
-          // 3. Încărcăm istoricul și pornim ascultarea
           fetchInitialActivities(device.id);
           subscribeToDevice(device.id);
         }
@@ -95,6 +102,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     initDashboard();
   }, []);
 
+  // ... fetchInitialActivities și updateLastActivity rămân la fel ...
   async function fetchInitialActivities(deviceId: string) {
     const { data } = await supabase
       .from("activity_log")
@@ -114,9 +122,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   function updateLastActivity(act: any) {
     let detail = "Activitate";
     try {
-        // Android trimite JSON string, ne asigurăm că îl parsăm
         const json = typeof act.event_data === 'string' ? JSON.parse(act.event_data) : act.event_data;
-        // Extragem titlul relevant pentru UI
         detail = json.title || json.detail || act.event_type;
     } catch(e) {}
 
@@ -131,36 +137,32 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }
 
   function subscribeToDevice(deviceId: string) {
-    console.log("📡 Pornire ascultare live pentru:", deviceId);
-
     const channel = supabase
       .channel(`device-live-${deviceId}`)
-      // Ascultăm Statusul (Heartbeat)
       .on(
         "postgres_changes", 
         { event: "*", schema: "public", table: "device_sessions", filter: `device_id=eq.${deviceId}` }, 
         (payload) => {
             const data = payload.new as any;
             if (data) {
-                console.log("💓 Puls primit:", data.status);
                 setState((prev) => ({
                   ...prev,
                   deviceStatus: data.status || "idle",
                   isListening: data.is_listening || false,
                   isSpeaking: data.is_speaking || false,
                   currentActivity: data.current_activity,
+                  // ⭐ ACTUALIZARE LIVE
+                  batteryLevel: data.battery_level,
+                  wifiStatus: data.wifi_status
                 }));
             }
         }
       )
-      // Ascultăm Activitățile Noi (Jocuri, Desene, etc.)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "activity_log", filter: `device_id=eq.${deviceId}` },
         (payload) => {
           const newAct = payload.new as any;
-          console.log("🎉 Activitate nouă:", newAct.event_type);
-          
           if (newAct) {
               setActivities(prev => [newAct, ...prev].slice(0, 50));
               updateLastActivity(newAct);
@@ -176,7 +178,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     if (!state.deviceId) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     await supabase.from("parent_commands").insert({
       device_id: state.deviceId,
       user_id: user.id,
