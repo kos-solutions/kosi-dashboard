@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "./supabaseClient";
 
-// ... Tipuri existente ...
 type DeviceStatus = "active" | "idle" | "offline";
 type Mood = "calm" | "neutral" | "agitated";
 type ActivityType = "story" | "meditation" | "game";
@@ -21,12 +20,11 @@ interface DashboardState {
   currentStory: string | null;
   sessionStartTime: Date | null;
   lastActivity: { type: string; detail: string; time: string } | null;
-  // ⭐ DATE NOI
+  // ⭐ Câmpuri noi pentru Baterie & WiFi
   batteryLevel: number | null;
   wifiStatus: "strong" | "good" | "weak" | "offline" | "unknown";
 }
 
-// ... Context Type ...
 interface DashboardContextType {
   state: DashboardState;
   sendCommand: (command: string) => void;
@@ -34,6 +32,23 @@ interface DashboardContextType {
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
+
+// ⭐ HELPER: Logica "Dead Man's Switch"
+// Verifică dacă timestamp-ul este mai vechi de 70 de secunde
+function checkActivityStatus(lastSeenIso: string | null, statusFromDb: string): DeviceStatus {
+    if (!lastSeenIso) return "offline";
+    
+    const lastSeen = new Date(lastSeenIso).getTime();
+    const now = new Date().getTime();
+    const diffSeconds = (now - lastSeen) / 1000;
+
+    // Telefonul trimite puls la 30 secunde.
+    // Dacă au trecut 70 secunde fără puls, considerăm dispozitivul mort/offline.
+    if (diffSeconds > 70) {
+        return "offline";
+    }
+    return statusFromDb as DeviceStatus;
+}
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DashboardState>({
@@ -49,15 +64,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     currentStory: null,
     sessionStartTime: null,
     lastActivity: null,
-    // ⭐ VALORI DEFAULT
     batteryLevel: null,
     wifiStatus: "unknown"
   });
 
   const [activities, setActivities] = useState<any[]>([]);
 
+  // ⭐ TIMER DE SIGURANȚĂ
+  // Rulează la fiecare 30 secunde pentru a verifica dacă telefonul a "tăcut"
   useEffect(() => {
-    async function initDashboard() {
+      const interval = setInterval(() => {
+          if (state.deviceId) {
+              refreshSessionStatus();
+          }
+      }, 30000); 
+
+      return () => clearInterval(interval);
+  }, [state.deviceId]);
+
+  useEffect(() => {
+    initDashboard();
+  }, []);
+
+  async function initDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -76,20 +105,22 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           .single();
 
         if (device) {
-          // Citim starea inițială (inclusiv baterie/wifi)
+          // Citim starea inițială
           const { data: session } = await supabase
             .from("device_sessions")
-            .select("status, last_seen, battery_level, wifi_status") // ⭐
+            .select("status, last_seen, battery_level, wifi_status")
             .eq("device_id", device.id)
             .maybeSingle();
+
+          // Calculăm statusul REAL (folosind timpul)
+          const realStatus = checkActivityStatus(session?.last_seen, session?.status || "offline");
 
           setState(prev => ({
             ...prev,
             deviceId: device.id,
             childName: device.child_name || "Dispozitiv Kosi",
-            deviceStatus: (session?.status as DeviceStatus) || "offline",
-            // ⭐ Mapăm datele inițiale
-            batteryLevel: session?.battery_level || null,
+            deviceStatus: realStatus,
+            batteryLevel: session?.battery_level ?? null,
             wifiStatus: session?.wifi_status || "unknown"
           }));
           
@@ -97,12 +128,31 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           subscribeToDevice(device.id);
         }
       }
-    }
+  }
 
-    initDashboard();
-  }, []);
+  // Funcție apelată periodic de timer
+  async function refreshSessionStatus() {
+      if (!state.deviceId) return;
+      
+      const { data: session } = await supabase
+        .from("device_sessions")
+        .select("status, last_seen, battery_level, wifi_status")
+        .eq("device_id", state.deviceId)
+        .maybeSingle();
+      
+      if (session) {
+          const realStatus = checkActivityStatus(session.last_seen, session.status);
+          
+          // Actualizăm starea dacă s-a schimbat ceva (de ex: a expirat timpul)
+          setState(prev => ({ 
+              ...prev, 
+              deviceStatus: realStatus,
+              batteryLevel: session.battery_level ?? prev.batteryLevel,
+              wifiStatus: session.wifi_status || prev.wifiStatus
+          }));
+      }
+  }
 
-  // ... fetchInitialActivities și updateLastActivity rămân la fel ...
   async function fetchInitialActivities(deviceId: string) {
     const { data } = await supabase
       .from("activity_log")
@@ -145,13 +195,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         (payload) => {
             const data = payload.new as any;
             if (data) {
+                // Chiar și la date live, verificăm timpul pentru siguranță
+                const realStatus = checkActivityStatus(data.last_seen, data.status);
+
                 setState((prev) => ({
                   ...prev,
-                  deviceStatus: data.status || "idle",
+                  deviceStatus: realStatus,
                   isListening: data.is_listening || false,
                   isSpeaking: data.is_speaking || false,
                   currentActivity: data.current_activity,
-                  // ⭐ ACTUALIZARE LIVE
                   batteryLevel: data.battery_level,
                   wifiStatus: data.wifi_status
                 }));
@@ -178,6 +230,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     if (!state.deviceId) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
     await supabase.from("parent_commands").insert({
       device_id: state.deviceId,
       user_id: user.id,
