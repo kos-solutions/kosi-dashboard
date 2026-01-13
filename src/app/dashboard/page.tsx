@@ -18,7 +18,7 @@ export default function DashboardPage() {
           <Sparkles className="w-4 h-4" /> Centru de Control Kosi
         </div>
         <h1 className="text-4xl font-black text-slate-900 tracking-tight">
-          Bună, Miriam te salută! 👋
+          Bună, KOSI te salută! 👋
         </h1>
       </header>
 
