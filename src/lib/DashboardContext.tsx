@@ -1,79 +1,177 @@
-'use client'
+"use client";
 
-import { useDashboard } from '@/lib/DashboardContext'
-import { Wifi, Battery, Smartphone, Activity } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { supabase } from "./supabaseClient";
 
-export default function StatusCard() {
-  const { state } = useDashboard()
-  const router = useRouter()
+type DeviceStatus = "active" | "idle" | "offline";
+type Mood = "calm" | "neutral" | "agitated";
+type ActivityType = "story" | "meditation" | "game";
 
-  // Statusul vine acum din DB via Context
-  const isOnline = state.deviceStatus === 'active'
+interface DashboardState {
+  deviceId: string | null;
+  childName: string;
+  deviceStatus: DeviceStatus;
+  mood: Mood;
+  lastMode: string;
+  hasAlert: boolean;
+  currentActivity: ActivityType | null;
+  isListening: boolean;
+  isSpeaking: boolean;
+  currentStory: string | null;
+  sessionStartTime: Date | null;
+  lastActivity: { type: string; detail: string; time: string } | null;
+}
+
+interface DashboardContextType {
+  state: DashboardState;
+  sendCommand: (command: string) => void;
+  activities: any[]; // ✅ Acesta este câmpul pe care îl caută LiveActivityFeed
+}
+
+const DashboardContext = createContext<DashboardContextType | null>(null);
+
+export function DashboardProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<DashboardState>({
+    deviceId: null,
+    childName: "Copilul tău",
+    deviceStatus: "idle",
+    mood: "calm",
+    lastMode: "Povești",
+    hasAlert: false,
+    currentActivity: null,
+    isListening: false,
+    isSpeaking: false,
+    currentStory: null,
+    sessionStartTime: null,
+    lastActivity: null
+  });
+
+  const [activities, setActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function initDashboard() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 1. Căutăm legătura în parent_devices
+      const { data: link } = await supabase
+        .from("parent_devices")
+        .select("device_id")
+        .eq("parent_id", user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (link && link.device_id) {
+        // 2. Luăm detaliile dispozitivului
+        const { data: device } = await supabase
+          .from("devices")
+          .select("id, child_name")
+          .eq("id", link.device_id)
+          .single();
+
+        if (device) {
+          setState(prev => ({
+            ...prev,
+            deviceId: device.id,
+            childName: device.child_name || "Dispozitiv Kosi"
+          }));
+          
+          // 3. Încărcăm istoricul și pornim ascultarea
+          fetchInitialActivities(device.id);
+          subscribeToDevice(device.id);
+        }
+      }
+    }
+
+    initDashboard();
+  }, []);
+
+  async function fetchInitialActivities(deviceId: string) {
+    const { data } = await supabase
+      .from("activity_log")
+      .select("*")
+      .eq("device_id", deviceId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    
+    if (data) {
+      setActivities(data);
+      if (data.length > 0) {
+        updateLastActivity(data[0]);
+      }
+    }
+  }
+
+  function updateLastActivity(act: any) {
+    let detail = "Activitate";
+    try {
+        const json = typeof act.event_data === 'string' ? JSON.parse(act.event_data) : act.event_data;
+        detail = json.title || json.detail || act.event_type;
+    } catch(e) {}
+
+    setState(prev => ({
+        ...prev,
+        lastActivity: {
+            type: act.event_type,
+            detail: detail,
+            time: new Date(act.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        }
+    }));
+  }
+
+  function subscribeToDevice(deviceId: string) {
+    const channel = supabase
+      .channel(`device-room-${deviceId}`)
+      .on(
+        "postgres_changes", 
+        { event: "*", schema: "public", table: "device_sessions", filter: `device_id=eq.${deviceId}` }, 
+        (payload) => {
+            const data = payload.new;
+            setState((prev) => ({
+              ...prev,
+              deviceStatus: data.status || "idle",
+              isListening: data.is_listening || false,
+              isSpeaking: data.is_speaking || false,
+              currentActivity: data.current_activity,
+            }));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_log", filter: `device_id=eq.${deviceId}` },
+        (payload) => {
+          const newAct = payload.new;
+          setActivities(prev => [newAct, ...prev].slice(0, 50));
+          updateLastActivity(newAct);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }
+
+  async function sendCommand(command: string) {
+    if (!state.deviceId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase.from("parent_commands").insert({
+      device_id: state.deviceId,
+      user_id: user.id,
+      command_type: command,
+    });
+  }
 
   return (
-    <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 relative overflow-hidden">
-      {/* Indicator WiFi Real */}
-      <div className={`absolute top-0 right-0 p-4 ${isOnline ? 'text-green-500' : 'text-slate-300'}`}>
-        <Wifi className="w-6 h-6" />
-      </div>
+    <DashboardContext.Provider value={{ state, sendCommand, activities }}>
+      {children}
+    </DashboardContext.Provider>
+  );
+}
 
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          {/* Iconiță dinamică */}
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-colors ${
-            isOnline ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
-          }`}>
-            <Smartphone className="w-8 h-8" />
-          </div>
-          
-          <div>
-            {/* Numele Real (Fără Miriam hardcodat) */}
-            <h3 className="text-lg font-bold text-slate-900">
-              {state.childName && state.childName !== "Miriam" ? state.childName : 'Dispozitiv Kosi'}
-            </h3>
-            
-            <p className="text-sm text-slate-500 font-medium flex items-center gap-2">
-              Status: 
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                isOnline ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-              }`}>
-                {isOnline ? 'Conectat' : 'Deconectat'}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        {/* Dacă nu e asociat, arată butonul de pairing */}
-        {!state.deviceId && (
-          <div className="mt-2 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-            <p className="text-sm text-orange-800 mb-3 font-medium">
-              Niciun robot Kosi asociat.
-            </p>
-            <button 
-              onClick={() => router.push('/dashboard/pairing')}
-              className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-orange-200"
-            >
-              Conectează un dispozitiv →
-            </button>
-          </div>
-        )}
-
-        {/* Dacă e asociat, arată detalii reale (dacă există) */}
-        {state.deviceId && (
-           <div className="flex items-center gap-4 mt-2 pt-4 border-t border-slate-50">
-              {/* Afișăm bateria DOAR dacă avem info (momentan o ascundem ca să nu mințim cu 84%) */}
-              {/* Putem implementa citirea bateriei din Android în V2 */}
-              
-              <div className="text-xs text-slate-400 flex items-center gap-1">
-                <Activity className="w-3 h-3" /> 
-                {state.lastActivity?.time 
-                  ? `Ultima activitate: ${state.lastActivity.time}` 
-                  : 'Aștept date...'}
-              </div>
-           </div>
-        )}
-      </div>
-    </div>
-  )
+// ✅ EXPORTUL ESTE AICI
+export function useDashboard() {
+  const context = useContext(DashboardContext);
+  if (!context) throw new Error("useDashboard must be used within DashboardProvider");
+  return context;
 }
