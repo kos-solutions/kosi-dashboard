@@ -12,7 +12,9 @@ interface DashboardState {
   wifiStatus: string;
   lastSeen: string;
   childName: string;
-  deviceId: string | null; // ⭐ ADĂUGAT: ID-ul dispozitivului
+  deviceId: string | null;
+  // ⭐ ADĂUGAT: Ultima activitate (procesată pentru UI)
+  lastActivity: any | null;
   todayStats: {
     stories: number;
     drawings: number;
@@ -36,7 +38,8 @@ const initialState: DashboardState = {
   wifiStatus: "unknown",
   lastSeen: new Date().toISOString(),
   childName: "Kosi",
-  deviceId: null, // ⭐ Default null
+  deviceId: null,
+  lastActivity: null, // Default null
   todayStats: {
     stories: 0,
     drawings: 0,
@@ -62,7 +65,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // Funcția pentru a trimite comenzi către Android
   const sendCommand = async (commandType: string, payload: any = null) => {
     try {
-      // Folosim ID-ul din state dacă îl avem, altfel îl căutăm
       let targetDeviceId = state.deviceId;
 
       if (!targetDeviceId) {
@@ -93,7 +95,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
-    // 1. Fetch Device Info (Nume și ID) - ⭐ Modificat select-ul
+    // 1. Fetch Device Info
     const { data: devices } = await supabase
         .from('devices')
         .select('id, child_name')
@@ -118,7 +120,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
         // Update Device Info
         if (devices && devices.length > 0) {
-            newState.deviceId = devices[0].id; // ⭐ Populăm ID-ul
+            newState.deviceId = devices[0].id;
             if (devices[0].child_name) {
                 newState.childName = devices[0].child_name;
             }
@@ -136,9 +138,33 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             newState.lastSeen = session.last_seen;
         }
 
-        // Update Activities
-        if (activityLogs) {
+        // Update Activities & Last Activity
+        if (activityLogs && activityLogs.length > 0) {
             newState.activities = activityLogs;
+            
+            // ⭐ Procesăm ultima activitate pentru a fi ușor de citit în UI
+            const lastLog = activityLogs[0];
+            let details = {};
+            
+            // Încercăm să parsăm JSON-ul dacă e string (Android trimite string)
+            try {
+                if (typeof lastLog.event_data === 'string') {
+                     // Curățăm formatul dacă e nevoie (uneori vine ca JSON stringificat dublu)
+                     details = JSON.parse(lastLog.event_data);
+                } else {
+                     details = lastLog.event_data;
+                }
+            } catch (e) {
+                console.log("Error parsing event data", e);
+                details = { detail: lastLog.event_data };
+            }
+
+            // Combinăm datele pentru UI
+            newState.lastActivity = {
+                type: lastLog.event_type,
+                ...details, // Aici se va afla proprietatea 'detail'
+                timestamp: lastLog.created_at
+            };
         }
 
         return newState;
@@ -149,13 +175,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshData();
 
-    // Ascultăm schimbări la sesiuni
     const statusChannel = supabase
       .channel('dashboard-status')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, refreshData)
       .subscribe();
 
-    // Ascultăm schimbări la loguri
     const activityChannel = supabase
       .channel('dashboard-activity')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
