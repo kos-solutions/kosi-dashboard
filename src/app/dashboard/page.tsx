@@ -23,22 +23,26 @@ export default function DashboardPage() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Partea de sus */}
+        
+        {/* COLOANA STÂNGA (4/12): Status, Voice, Controls */}
         <div className="lg:col-span-4 space-y-8">
           <StatusCard />
           <VoiceCloneCard />
+          {/* Aici este noua telecomandă cu TTS */}
           <QuickControls />
         </div>
 
+        {/* COLOANA MIJLOC (5/12): Feed Live */}
         <div className="lg:col-span-5">
           <LiveActivityFeed />
         </div>
 
+        {/* COLOANA DREAPTA (3/12): Statistici */}
         <div className="lg:col-span-3">
           <ActivitySummary />
         </div>
 
-        {/* --- SECȚIUNEA "WOW" LANDSCAPE --- */}
+        {/* --- SECȚIUNEA "WOW" LANDSCAPE (12/12) --- */}
         <div className="lg:col-span-12 grid grid-cols-1 xl:grid-cols-3 gap-8 pt-4">
           
           {/* Profil Creativ AI */}
@@ -47,7 +51,7 @@ export default function DashboardPage() {
             <div className="relative z-10">
               <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">✨ Profil Creativ AI</h3>
               <p className="text-indigo-100 leading-relaxed italic text-lg mb-8">
-                "Astăzi, Miriam pare fascinată de culorile calde și de poveștile cu animale. Activitatea ei sugerează o stare de curiozitate ridicată și dorință de explorare."
+                "Astăzi, {state.childName || 'copilul'} pare fascinat de culorile calde și de poveștile cu animale. Activitatea sugerează o stare de curiozitate ridicată."
               </p>
               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-sm">
                 <span className="font-bold text-indigo-200">RECOMANDARE:</span> O poveste despre junglă ar fi perfectă diseară.
@@ -68,7 +72,7 @@ export default function DashboardPage() {
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="aspect-square bg-slate-50 rounded-[24px] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 group hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer">
                   <Palette className="w-8 h-8 text-slate-300 group-hover:text-indigo-400 transition-colors" />
-                  <span className="text-[10px] font-black text-slate-300 group-hover:text-indigo-400 uppercase tracking-widest">Azi la 14:{i}0</span>
+                  <span className="text-[10px] font-black text-slate-300 group-hover:text-indigo-400 uppercase tracking-widest">Desen #{i}</span>
                 </div>
               ))}
             </div>

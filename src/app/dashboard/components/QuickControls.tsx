@@ -1,6 +1,6 @@
 'use client'
 
-import { Power, Volume2, Square, MessageSquare, RefreshCcw } from 'lucide-react'
+import { Power, Square, MessageSquare, RefreshCcw } from 'lucide-react'
 import { useDashboard } from '@/lib/DashboardContext'
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
@@ -16,7 +16,7 @@ export default function QuickControls() {
       await sendCommand(type, payload)
       if (label) toast.success(`Comandă trimisă: ${label}`)
       
-      // Reset pentru UI
+      // Reset vizual
       setTimeout(() => setIsSending(false), 500)
     } catch (e) {
       toast.error("Eroare la trimiterea comenzii.")
@@ -31,7 +31,7 @@ export default function QuickControls() {
         Control Dispozitiv
       </h3>
       
-      {/* Zona Butoane Rapide */}
+      {/* Butoane Rapide */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <button 
           onClick={() => handleCommand('STOP_AUDIO', null, 'Stop Audio')}
