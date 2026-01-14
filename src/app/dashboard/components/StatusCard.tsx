@@ -1,98 +1,107 @@
-'use client'
+"use client";
 
-import { useDashboard } from '@/lib/DashboardContext'
-import { Wifi, WifiOff, Battery, Smartphone, Activity, BatteryCharging } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useDashboard } from "@/lib/DashboardContext";
+import { Battery, Signal, Wifi, Activity, Clock } from "lucide-react";
 
 export default function StatusCard() {
-  const { state } = useDashboard()
-  const router = useRouter()
+  const { state } = useDashboard();
 
-  const isOnline = state.deviceStatus === 'active'
+  // Helper pentru culoarea statusului
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "online":
+        return "bg-green-500 shadow-green-200";
+      case "active":
+        return "bg-blue-500 shadow-blue-200";
+      default:
+        return "bg-slate-300 shadow-slate-200";
+    }
+  };
 
-  // Helper pentru iconița de WiFi
-  const getWifiIcon = () => {
-    if (!isOnline) return <WifiOff className="w-6 h-6 text-slate-300" />
-    if (state.wifiStatus === 'strong') return <Wifi className="w-6 h-6 text-green-500" />
-    if (state.wifiStatus === 'good') return <Wifi className="w-6 h-6 text-green-400" />
-    if (state.wifiStatus === 'weak') return <Wifi className="w-6 h-6 text-yellow-500" />
-    return <Wifi className="w-6 h-6 text-slate-300" />
-  }
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "online": return "Online";
+      case "active": return "Activ";
+      default: return "Offline";
+    }
+  };
 
-  // Helper pentru culoarea bateriei
-  const getBatteryColor = () => {
-    const level = state.batteryLevel || 0
-    if (level > 20) return "text-slate-400"
-    return "text-red-500 animate-pulse" // Roșu și pulsând dacă e sub 20%
-  }
+  // Helper pentru baterie
+  const getBatteryIcon = (level: number) => {
+    if (level > 80) return <Battery className="w-5 h-5 text-green-600" />;
+    if (level > 20) return <Battery className="w-5 h-5 text-slate-600" />;
+    return <Battery className="w-5 h-5 text-red-600" />;
+  };
 
   return (
-    <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 relative overflow-hidden">
-      {/* WiFi Indicator Real */}
-      <div className="absolute top-0 right-0 p-4">
-        {getWifiIcon()}
-      </div>
+    <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 h-full relative overflow-hidden">
+      {/* Background Decorativ */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-bl-[100px] -mr-8 -mt-8 opacity-50" />
 
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-colors ${
-            isOnline ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'
-          }`}>
-            <Smartphone className="w-8 h-8" />
+      <div className="relative z-10">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`w-3 h-3 rounded-full shadow-[0_0_10px] ${getStatusColor(state.deviceStatus)}`} />
+              <span className="text-sm font-bold text-slate-600 uppercase tracking-wider">
+                {getStatusText(state.deviceStatus)}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 font-medium">
+              Ultima actualizare: {state.lastSeen ? new Date(state.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+            </p>
           </div>
           
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">
-              {state.childName}
-            </h3>
-            
-            <p className="text-sm text-slate-500 font-medium flex items-center gap-2">
-              Status: 
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                isOnline ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-              }`}>
-                {isOnline ? 'Conectat' : 'Deconectat'}
-              </span>
-            </p>
+          <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+            <div className="flex items-center gap-1.5" title="Baterie">
+              {getBatteryIcon(state.batteryLevel)}
+              <span className="text-xs font-bold text-slate-700">{state.batteryLevel}%</span>
+            </div>
+            <div className="w-px h-3 bg-slate-200" />
+            <div className="flex items-center gap-1.5" title="Semnal WiFi">
+              <Wifi className={`w-4 h-4 ${state.wifiStatus === 'strong' ? 'text-indigo-600' : 'text-slate-400'}`} />
+            </div>
           </div>
         </div>
 
-        {!state.deviceId && (
-          <div className="mt-2 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-            <p className="text-sm text-orange-800 mb-3 font-medium">
-              Niciun robot Kosi asociat.
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-2xl font-black text-slate-900 mb-1 tracking-tight">
+              {state.childName}
+            </h3>
+            <p className="text-sm text-slate-500 font-medium flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+              Dispozitiv conectat
             </p>
-            <button 
-              onClick={() => router.push('/dashboard/pairing')}
-              className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-orange-200"
-            >
-              Conectează un dispozitiv →
-            </button>
           </div>
-        )}
 
-        {state.deviceId && (
-           <div className="flex items-center gap-4 mt-2 pt-4 border-t border-slate-50 justify-between">
-              {/* Bateria Reală */}
-              {state.batteryLevel !== null && (
-                <div className={`flex items-center gap-2 text-xs font-bold bg-slate-50 px-3 py-1.5 rounded-lg ${getBatteryColor()}`}>
-                    <Battery className="w-4 h-4" /> 
-                    {state.batteryLevel}%
-                </div>
-              )}
+          {!state.deviceId && (
+             <div className="p-3 bg-amber-50 text-amber-700 text-xs rounded-xl border border-amber-100">
+                ⚠ Niciun dispozitiv Kosi detectat.
+             </div>
+          )}
 
-              {/* Ultima Activitate */}
-              <div className="text-xs text-slate-400 flex items-center gap-1 overflow-hidden max-w-[150px]">
-                <Activity className="w-3 h-3 flex-shrink-0" /> 
-                <span className="truncate">
-                    {state.lastActivity?.detail 
-                    ? `${state.lastActivity.detail}` 
-                    : 'Fără activitate'}
-                </span>
-              </div>
-           </div>
-        )}
+          {/* Ultima Activitate Card Mic */}
+          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-indigo-600 shadow-sm">
+               <Activity className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                 Ultima activitate
+               </p>
+               <p className="text-sm font-bold text-slate-700 truncate">
+                 {state.lastActivity?.detail || state.lastActivity?.type || "Inactiv"}
+               </p>
+            </div>
+            <div className="text-right">
+                <p className="text-xs font-medium text-slate-400">
+                    {state.lastActivity?.timestamp ? new Date(state.lastActivity.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}
+                </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  )
+  );
 }
