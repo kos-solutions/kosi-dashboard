@@ -11,18 +11,19 @@ interface DashboardState {
   batteryLevel: number;
   wifiStatus: string;
   lastSeen: string;
+  childName: string; // ⭐ ADĂUGAT: Numele copilului
   todayStats: {
     stories: number;
     drawings: number;
     games: number;
     learningTime: number;
   };
-  activities: any[]; // ⭐ REDENUMIT din recentActivity pentru compatibilitate
+  activities: any[]; 
 }
 
 interface DashboardContextType {
   state: DashboardState;
-  activities: any[]; // ⭐ EXPUSEM DIRECT pentru LiveActivityFeed
+  activities: any[];
   sendCommand: (commandType: string, payload?: any) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -33,13 +34,14 @@ const initialState: DashboardState = {
   batteryLevel: 0,
   wifiStatus: "unknown",
   lastSeen: new Date().toISOString(),
+  childName: "Kosi", // Valoare default
   todayStats: {
     stories: 0,
     drawings: 0,
     games: 0,
     learningTime: 0,
   },
-  activities: [], // Inițial gol
+  activities: [], 
 };
 
 // Creăm contextul
@@ -84,14 +86,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
-    // Fetch status dispozitiv
+    // 1. Fetch Device Info (Nume copil)
+    const { data: devices } = await supabase
+        .from('devices')
+        .select('child_name')
+        .limit(1);
+
+    // 2. Fetch Status
     const { data: sessions } = await supabase
         .from('device_sessions')
         .select('*')
         .order('last_seen', { ascending: false })
         .limit(1);
 
-    // Fetch activități recente (Log)
+    // 3. Fetch Activități
     const { data: activityLogs } = await supabase
         .from('activity_log')
         .select('*')
@@ -100,6 +108,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     setState(prev => {
         const newState = { ...prev };
+
+        // Update Nume Copil
+        if (devices && devices.length > 0 && devices[0].child_name) {
+            newState.childName = devices[0].child_name;
+        }
 
         // Update Status
         if (sessions && sessions.length > 0) {
@@ -147,7 +160,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   return (
     <DashboardContext.Provider value={{ 
         state, 
-        activities: state.activities, // ⭐ Conectăm direct aici
+        activities: state.activities, 
         sendCommand, 
         refreshData 
     }}>
@@ -156,5 +169,4 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook-ul exportat
 export const useDashboard = () => useContext(DashboardContext);
