@@ -13,7 +13,6 @@ interface DashboardState {
   lastSeen: string;
   childName: string;
   deviceId: string | null;
-  // ⭐ ADĂUGAT: Ultima activitate (procesată pentru UI)
   lastActivity: any | null;
   todayStats: {
     stories: number;
@@ -39,7 +38,7 @@ const initialState: DashboardState = {
   lastSeen: new Date().toISOString(),
   childName: "Kosi",
   deviceId: null,
-  lastActivity: null, // Default null
+  lastActivity: null,
   todayStats: {
     stories: 0,
     drawings: 0,
@@ -67,6 +66,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     try {
       let targetDeviceId = state.deviceId;
 
+      // Dacă nu avem ID-ul în state, îl căutăm din nou
       if (!targetDeviceId) {
           const { data: devices } = await supabase.from("devices").select("id").limit(1);
           targetDeviceId = devices?.[0]?.id;
@@ -95,94 +95,114 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
-    // 1. Fetch Device Info
-    const { data: devices } = await supabase
-        .from('devices')
-        .select('id, child_name')
-        .limit(1);
+    try {
+        // 1. Fetch Device Info
+        const { data: devices } = await supabase
+            .from('devices')
+            .select('id, child_name')
+            .limit(1);
 
-    // 2. Fetch Status
-    const { data: sessions } = await supabase
-        .from('device_sessions')
-        .select('*')
-        .order('last_seen', { ascending: false })
-        .limit(1);
+        let currentDeviceId = state.deviceId;
+        let currentChildName = state.childName;
 
-    // 3. Fetch Activități
-    const { data: activityLogs } = await supabase
-        .from('activity_log')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-    setState(prev => {
-        const newState = { ...prev };
-
-        // Update Device Info
         if (devices && devices.length > 0) {
-            newState.deviceId = devices[0].id;
-            if (devices[0].child_name) {
-                newState.childName = devices[0].child_name;
+            currentDeviceId = devices[0].id;
+            if (devices[0].child_name) currentChildName = devices[0].child_name;
+        }
+
+        if (!currentDeviceId) return;
+
+        // 2. Fetch Status - FILTRĂM DUPĂ DEVICE ID EXACT
+        const { data: sessions } = await supabase
+            .from('device_sessions')
+            .select('*')
+            .eq('device_id', currentDeviceId) // ⭐ Critic: Luăm doar sesiunea device-ului curent
+            .order('last_seen', { ascending: false })
+            .limit(1);
+
+        // 3. Fetch Activități
+        const { data: activityLogs } = await supabase
+            .from('activity_log')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        setState(prev => {
+            const newState = { ...prev };
+            newState.deviceId = currentDeviceId;
+            newState.childName = currentChildName;
+
+            // Update Status
+            if (sessions && sessions.length > 0) {
+                const session = sessions[0];
+                
+                // ⭐ DEBUGGING TIMEZONE
+                const lastSeenTime = new Date(session.last_seen).getTime();
+                const nowTime = new Date().getTime();
+                const diffMinutes = (nowTime - lastSeenTime) / 60000;
+
+                console.log(`[Dashboard] LastSeen: ${session.last_seen} | Diff: ${diffMinutes.toFixed(2)} min | Battery: ${session.battery_level}%`);
+
+                // Toleranță de 2 minute (Heartbeat e la 30 secunde)
+                newState.deviceStatus = diffMinutes < 2.5 ? 'online' : 'offline'; 
+                newState.batteryLevel = session.battery_level;
+                newState.wifiStatus = session.wifi_status;
+                newState.lastSeen = session.last_seen;
+            } else {
+                newState.deviceStatus = 'offline';
             }
-        }
 
-        // Update Status
-        if (sessions && sessions.length > 0) {
-            const session = sessions[0];
-            const lastSeenDate = new Date(session.last_seen);
-            const diffMinutes = (new Date().getTime() - lastSeenDate.getTime()) / 60000;
-            
-            newState.deviceStatus = diffMinutes < 2 ? 'online' : 'offline';
-            newState.batteryLevel = session.battery_level;
-            newState.wifiStatus = session.wifi_status;
-            newState.lastSeen = session.last_seen;
-        }
-
-        // Update Activities & Last Activity
-        if (activityLogs && activityLogs.length > 0) {
-            newState.activities = activityLogs;
-            
-            // ⭐ Procesăm ultima activitate pentru a fi ușor de citit în UI
-            const lastLog = activityLogs[0];
-            let details = {};
-            
-            // Încercăm să parsăm JSON-ul dacă e string (Android trimite string)
-            try {
-                if (typeof lastLog.event_data === 'string') {
-                     // Curățăm formatul dacă e nevoie (uneori vine ca JSON stringificat dublu)
-                     details = JSON.parse(lastLog.event_data);
-                } else {
-                     details = lastLog.event_data;
+            // Update Activities & Last Activity
+            if (activityLogs && activityLogs.length > 0) {
+                newState.activities = activityLogs;
+                
+                const lastLog = activityLogs[0];
+                let details = {};
+                
+                try {
+                    if (typeof lastLog.event_data === 'string') {
+                         details = JSON.parse(lastLog.event_data);
+                    } else {
+                         details = lastLog.event_data;
+                    }
+                } catch (e) {
+                    details = { detail: lastLog.event_data };
                 }
-            } catch (e) {
-                console.log("Error parsing event data", e);
-                details = { detail: lastLog.event_data };
+
+                newState.lastActivity = {
+                    type: lastLog.event_type,
+                    ...details,
+                    timestamp: lastLog.created_at
+                };
             }
 
-            // Combinăm datele pentru UI
-            newState.lastActivity = {
-                type: lastLog.event_type,
-                ...details, // Aici se va afla proprietatea 'detail'
-                timestamp: lastLog.created_at
-            };
-        }
-
-        return newState;
-    });
+            return newState;
+        });
+    } catch (e) {
+        console.error("Eroare refreshData:", e);
+    }
   };
 
   // Realtime Subscription
   useEffect(() => {
     refreshData();
 
+    // Ascultăm schimbări pe device_sessions
     const statusChannel = supabase
       .channel('dashboard-status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, refreshData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, (payload) => {
+          console.log("⚡ Realtime Update Session:", payload);
+          refreshData();
+      })
       .subscribe();
 
+    // Ascultăm schimbări pe activity_log
     const activityChannel = supabase
       .channel('dashboard-activity')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, () => {
+          console.log("⚡ Realtime New Activity");
+          refreshData();
+      })
       .subscribe();
 
     return () => {
