@@ -30,7 +30,6 @@ interface DashboardContextType {
   refreshData: () => Promise<void>;
 }
 
-// Starea inițială
 const initialState: DashboardState = {
   deviceStatus: "offline",
   batteryLevel: 0,
@@ -48,7 +47,6 @@ const initialState: DashboardState = {
   activities: [], 
 };
 
-// Creăm contextul
 const DashboardContext = createContext<DashboardContextType>({
   state: initialState,
   activities: [],
@@ -56,17 +54,14 @@ const DashboardContext = createContext<DashboardContextType>({
   refreshData: async () => {},
 });
 
-// Provider-ul principal
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DashboardState>(initialState);
   const supabase = createClientComponentClient();
 
-  // Funcția pentru a trimite comenzi către Android
   const sendCommand = async (commandType: string, payload: any = null) => {
     try {
       let targetDeviceId = state.deviceId;
 
-      // Dacă nu avem ID-ul în state, îl căutăm din nou
       if (!targetDeviceId) {
           const { data: devices } = await supabase.from("devices").select("id").limit(1);
           targetDeviceId = devices?.[0]?.id;
@@ -112,11 +107,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
         if (!currentDeviceId) return;
 
-        // 2. Fetch Status - FILTRĂM DUPĂ DEVICE ID EXACT
+        // 2. Fetch Status
         const { data: sessions } = await supabase
             .from('device_sessions')
             .select('*')
-            .eq('device_id', currentDeviceId) // ⭐ Critic: Luăm doar sesiunea device-ului curent
+            .eq('device_id', currentDeviceId)
             .order('last_seen', { ascending: false })
             .limit(1);
 
@@ -132,19 +127,24 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             newState.deviceId = currentDeviceId;
             newState.childName = currentChildName;
 
-            // Update Status
+            // ⭐ FIX LOGIC STATUS: Prioritate 'status' din DB, apoi fallback la timp
             if (sessions && sessions.length > 0) {
                 const session = sessions[0];
-                
-                // ⭐ DEBUGGING TIMEZONE
                 const lastSeenTime = new Date(session.last_seen).getTime();
                 const nowTime = new Date().getTime();
                 const diffMinutes = (nowTime - lastSeenTime) / 60000;
 
-                console.log(`[Dashboard] LastSeen: ${session.last_seen} | Diff: ${diffMinutes.toFixed(2)} min | Battery: ${session.battery_level}%`);
+                console.log(`[Dashboard] DB Status: ${session.status} | Diff: ${diffMinutes.toFixed(2)} min`);
 
-                // Toleranță de 2 minute (Heartbeat e la 30 secunde)
-                newState.deviceStatus = diffMinutes < 2.5 ? 'online' : 'offline'; 
+                // Dacă Worker-ul a trimis explicit "offline", respectăm asta imediat
+                if (session.status === 'offline') {
+                    newState.deviceStatus = 'offline';
+                } else {
+                    // Altfel, folosim timeout-ul de siguranță (2.5 min)
+                    // Dacă e "active" dar nu a mai dat semne de 3 minute -> offline
+                    newState.deviceStatus = diffMinutes < 2.5 ? 'online' : 'offline';
+                }
+
                 newState.batteryLevel = session.battery_level;
                 newState.wifiStatus = session.wifi_status;
                 newState.lastSeen = session.last_seen;
@@ -152,7 +152,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
                 newState.deviceStatus = 'offline';
             }
 
-            // Update Activities & Last Activity
+            // Update Activities
             if (activityLogs && activityLogs.length > 0) {
                 newState.activities = activityLogs;
                 
@@ -183,26 +183,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Realtime Subscription
+  // Realtime
   useEffect(() => {
     refreshData();
 
-    // Ascultăm schimbări pe device_sessions
     const statusChannel = supabase
       .channel('dashboard-status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, (payload) => {
-          console.log("⚡ Realtime Update Session:", payload);
-          refreshData();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, refreshData)
       .subscribe();
 
-    // Ascultăm schimbări pe activity_log
     const activityChannel = supabase
       .channel('dashboard-activity')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, () => {
-          console.log("⚡ Realtime New Activity");
-          refreshData();
-      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
       .subscribe();
 
     return () => {
