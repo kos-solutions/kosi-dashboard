@@ -9,24 +9,26 @@ import ActivitySummary from './components/ActivitySummary'
 import VoiceCloneCard from './components/VoiceCloneCard'
 
 export default function DashboardPage() {
+  // AICI ESTE CHEIA: Extragem 'activities' pentru a vedea desenele reale
   const { state, activities } = useDashboard()
 
-  // 1. Filtrăm și procesăm desenele reale din baza de date
+  // --- LOGICĂ NOUĂ: Procesăm desenele reale din baza de date ---
   const drawings = activities
     .filter(act => act.event_type === 'DRAW')
     .map(act => {
-      // Parsăm JSON-ul pentru a extrage URL-ul și Șablonul
+      // 1. Parsăm JSON-ul salvat de Android
       let data: any = {};
       try {
         data = typeof act.event_data === 'string' ? JSON.parse(act.event_data) : act.event_data;
       } catch (e) {
         console.error("Eroare parsare desen:", e);
       }
+      
+      // 2. Extragem datele (URL și Șablon)
       return {
         id: act.id,
-        url: data.url,
-        // Dacă nu găsește template în JSON, pune 'Liber'
-        template: data.template || 'Liber', 
+        url: data.url, // Link-ul către poză
+        template: data.template || 'Liber', // Șablonul (ex: Pisică)
         timestamp: act.created_at
       };
     })
@@ -97,14 +99,14 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {drawings.map((draw) => (
                 <div key={draw.id} className="aspect-square bg-slate-50 rounded-[20px] border-2 border-slate-100 overflow-hidden group relative cursor-pointer hover:border-indigo-200 transition-all shadow-sm">
-                  {/* Imaginea Reală */}
+                  {/* Imaginea Reală din Cloud */}
                   <img 
                     src={draw.url} 
                     alt="Desen Kosi" 
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                   
-                  {/* Overlay cu Șablon și Dată */}
+                  {/* Overlay cu Info Șablon și Oră */}
                   <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-sm p-2 translate-y-full group-hover:translate-y-0 transition-transform flex flex-col items-center">
                     <p className="text-[10px] text-white font-bold text-center flex items-center gap-1">
                        <LayoutTemplate className="w-3 h-3 text-orange-400" /> {draw.template}
@@ -117,7 +119,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            // Fallback dacă nu sunt desene
+            // Fallback dacă nu sunt desene în baza de date
             <div className="flex flex-col items-center justify-center py-8 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50 h-48">
                 <ImageIcon className="w-10 h-10 mb-2 opacity-30" />
                 <p className="text-xs font-bold uppercase tracking-widest opacity-60">Încă nu sunt desene</p>
