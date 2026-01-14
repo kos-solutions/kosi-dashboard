@@ -11,7 +11,8 @@ interface DashboardState {
   batteryLevel: number;
   wifiStatus: string;
   lastSeen: string;
-  childName: string; // ⭐ ADĂUGAT: Numele copilului
+  childName: string;
+  deviceId: string | null; // ⭐ ADĂUGAT: ID-ul dispozitivului
   todayStats: {
     stories: number;
     drawings: number;
@@ -34,7 +35,8 @@ const initialState: DashboardState = {
   batteryLevel: 0,
   wifiStatus: "unknown",
   lastSeen: new Date().toISOString(),
-  childName: "Kosi", // Valoare default
+  childName: "Kosi",
+  deviceId: null, // ⭐ Default null
   todayStats: {
     stories: 0,
     drawings: 0,
@@ -60,18 +62,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // Funcția pentru a trimite comenzi către Android
   const sendCommand = async (commandType: string, payload: any = null) => {
     try {
-      const { data: devices } = await supabase.from("devices").select("id").limit(1);
-      const deviceId = devices?.[0]?.id;
+      // Folosim ID-ul din state dacă îl avem, altfel îl căutăm
+      let targetDeviceId = state.deviceId;
 
-      if (!deviceId) {
+      if (!targetDeviceId) {
+          const { data: devices } = await supabase.from("devices").select("id").limit(1);
+          targetDeviceId = devices?.[0]?.id;
+      }
+
+      if (!targetDeviceId) {
         console.error("Nu s-a găsit niciun dispozitiv asociat.");
         return;
       }
 
-      console.log(`Trimit comanda ${commandType} către ${deviceId}`);
+      console.log(`Trimit comanda ${commandType} către ${targetDeviceId}`);
 
       const { error } = await supabase.from("parent_commands").insert({
-        device_id: deviceId,
+        device_id: targetDeviceId,
         command_type: commandType,
         payload: payload,
         is_executed: false,
@@ -86,10 +93,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
-    // 1. Fetch Device Info (Nume copil)
+    // 1. Fetch Device Info (Nume și ID) - ⭐ Modificat select-ul
     const { data: devices } = await supabase
         .from('devices')
-        .select('child_name')
+        .select('id, child_name')
         .limit(1);
 
     // 2. Fetch Status
@@ -109,9 +116,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setState(prev => {
         const newState = { ...prev };
 
-        // Update Nume Copil
-        if (devices && devices.length > 0 && devices[0].child_name) {
-            newState.childName = devices[0].child_name;
+        // Update Device Info
+        if (devices && devices.length > 0) {
+            newState.deviceId = devices[0].id; // ⭐ Populăm ID-ul
+            if (devices[0].child_name) {
+                newState.childName = devices[0].child_name;
+            }
         }
 
         // Update Status
@@ -139,13 +149,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refreshData();
 
-    // Ascultăm schimbări la sesiuni (baterie/status)
+    // Ascultăm schimbări la sesiuni
     const statusChannel = supabase
       .channel('dashboard-status')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, refreshData)
       .subscribe();
 
-    // Ascultăm schimbări la loguri (activitate nouă)
+    // Ascultăm schimbări la loguri
     const activityChannel = supabase
       .channel('dashboard-activity')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
