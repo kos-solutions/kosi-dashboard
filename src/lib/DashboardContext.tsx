@@ -17,11 +17,12 @@ interface DashboardState {
     games: number;
     learningTime: number;
   };
-  recentActivity: any[]; // Poți defini un tip mai strict aici dacă vrei
+  activities: any[]; // ⭐ REDENUMIT din recentActivity pentru compatibilitate
 }
 
 interface DashboardContextType {
   state: DashboardState;
+  activities: any[]; // ⭐ EXPUSEM DIRECT pentru LiveActivityFeed
   sendCommand: (commandType: string, payload?: any) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -38,12 +39,13 @@ const initialState: DashboardState = {
     games: 0,
     learningTime: 0,
   },
-  recentActivity: [],
+  activities: [], // Inițial gol
 };
 
 // Creăm contextul
 const DashboardContext = createContext<DashboardContextType>({
   state: initialState,
+  activities: [],
   sendCommand: async () => {},
   refreshData: async () => {},
 });
@@ -56,8 +58,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // Funcția pentru a trimite comenzi către Android
   const sendCommand = async (commandType: string, payload: any = null) => {
     try {
-      // 1. Luăm ID-ul dispozitivului (în mod ideal ar fi selectat din UI)
-      // Pentru demo, luăm primul dispozitiv găsit
       const { data: devices } = await supabase.from("devices").select("id").limit(1);
       const deviceId = devices?.[0]?.id;
 
@@ -68,7 +68,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
       console.log(`Trimit comanda ${commandType} către ${deviceId}`);
 
-      // 2. Inserăm comanda în tabela parent_commands
       const { error } = await supabase.from("parent_commands").insert({
         device_id: deviceId,
         command_type: commandType,
@@ -85,59 +84,77 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
-    // Aici poți adăuga logica de fetch pentru statistici reale
-    // Momentan lăsăm datele mock sau statice
-    
-    // Exemplu fetch status dispozitiv
+    // Fetch status dispozitiv
     const { data: sessions } = await supabase
         .from('device_sessions')
         .select('*')
         .order('last_seen', { ascending: false })
         .limit(1);
 
-    if (sessions && sessions.length > 0) {
-        const session = sessions[0];
-        // Calculăm dacă e online (dacă a fost văzut în ultimele 2 minute)
-        const lastSeenDate = new Date(session.last_seen);
-        const diffMinutes = (new Date().getTime() - lastSeenDate.getTime()) / 60000;
-        
-        setState(prev => ({
-            ...prev,
-            deviceStatus: diffMinutes < 2 ? 'online' : 'offline',
-            batteryLevel: session.battery_level,
-            wifiStatus: session.wifi_status,
-            lastSeen: session.last_seen
-        }));
-    }
+    // Fetch activități recente (Log)
+    const { data: activityLogs } = await supabase
+        .from('activity_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+    setState(prev => {
+        const newState = { ...prev };
+
+        // Update Status
+        if (sessions && sessions.length > 0) {
+            const session = sessions[0];
+            const lastSeenDate = new Date(session.last_seen);
+            const diffMinutes = (new Date().getTime() - lastSeenDate.getTime()) / 60000;
+            
+            newState.deviceStatus = diffMinutes < 2 ? 'online' : 'offline';
+            newState.batteryLevel = session.battery_level;
+            newState.wifiStatus = session.wifi_status;
+            newState.lastSeen = session.last_seen;
+        }
+
+        // Update Activities
+        if (activityLogs) {
+            newState.activities = activityLogs;
+        }
+
+        return newState;
+    });
   };
 
-  // Realtime Subscription pentru status
+  // Realtime Subscription
   useEffect(() => {
     refreshData();
 
-    const channel = supabase
-      .channel('dashboard-updates')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'device_sessions' },
-        (payload) => {
-          console.log('Update de la device:', payload);
-          refreshData();
-        }
-      )
+    // Ascultăm schimbări la sesiuni (baterie/status)
+    const statusChannel = supabase
+      .channel('dashboard-status')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, refreshData)
+      .subscribe();
+
+    // Ascultăm schimbări la loguri (activitate nouă)
+    const activityChannel = supabase
+      .channel('dashboard-activity')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(statusChannel);
+      supabase.removeChannel(activityChannel);
     };
   }, []);
 
   return (
-    <DashboardContext.Provider value={{ state, sendCommand, refreshData }}>
+    <DashboardContext.Provider value={{ 
+        state, 
+        activities: state.activities, // ⭐ Conectăm direct aici
+        sendCommand, 
+        refreshData 
+    }}>
       {children}
     </DashboardContext.Provider>
   );
 }
 
-// ⭐ FIX-UL ESTE AICI: Exportăm explicit hook-ul
+// Hook-ul exportat
 export const useDashboard = () => useContext(DashboardContext);
