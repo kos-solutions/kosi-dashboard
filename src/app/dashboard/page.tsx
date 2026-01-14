@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles, Palette, BrainCircuit } from 'lucide-react'
+import { Sparkles, Palette, BrainCircuit, Image as ImageIcon } from 'lucide-react'
 import { useDashboard } from '@/lib/DashboardContext'
 import StatusCard from './components/StatusCard'
 import QuickControls from './components/QuickControls'
@@ -9,7 +9,27 @@ import ActivitySummary from './components/ActivitySummary'
 import VoiceCloneCard from './components/VoiceCloneCard'
 
 export default function DashboardPage() {
-  const { state } = useDashboard()
+  const { state, activities } = useDashboard()
+
+  // 1. Filtrăm și procesăm desenele reale din baza de date
+  const drawings = activities
+    .filter(act => act.event_type === 'DRAW')
+    .map(act => {
+      // Parsăm JSON-ul pentru a extrage URL-ul
+      let data = {};
+      try {
+        data = typeof act.event_data === 'string' ? JSON.parse(act.event_data) : act.event_data;
+      } catch (e) {
+        console.error("Eroare parsare desen:", e);
+      }
+      return {
+        id: act.id,
+        url: (data as any).url,
+        timestamp: act.created_at
+      };
+    })
+    .filter(item => item.url) // Păstrăm doar ce are URL valid
+    .slice(0, 4); // Luăm doar ultimele 4
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700 pb-10">
@@ -22,40 +42,30 @@ export default function DashboardPage() {
         </h1>
       </header>
 
-      {/* --- RÂNDUL 1: DASHBOARD VITAL (Status + Telecomandă + Stats) --- */}
+      {/* --- RÂNDUL 1: DASHBOARD VITAL --- */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        
-        {/* 1. Status Card (Stânga) */}
         <div className="md:col-span-4 lg:col-span-3">
           <StatusCard />
         </div>
-
-        {/* 2. Telecomandă (Centru - Prioritate Maximă) */}
         <div className="md:col-span-8 lg:col-span-6">
           <QuickControls />
         </div>
-
-        {/* 3. Statistici Rapide (Dreapta) */}
         <div className="md:col-span-12 lg:col-span-3">
           <ActivitySummary />
         </div>
       </div>
 
-      {/* --- RÂNDUL 2: MONITORIZARE & SETĂRI --- */}
+      {/* --- RÂNDUL 2: MONITORIZARE --- */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Feed Activitate (Mai lat acum, ca să nu fie foarte înalt) */}
         <div className="lg:col-span-8">
           <LiveActivityFeed />
         </div>
-
-        {/* Voice Cloning */}
         <div className="lg:col-span-4">
           <VoiceCloneCard />
         </div>
       </div>
 
-      {/* --- RÂNDUL 3: CREATIVITATE & INSIGHTS --- */}
+      {/* --- RÂNDUL 3: GALERIA REALĂ --- */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-2">
           
         {/* Profil Creativ AI */}
@@ -64,15 +74,15 @@ export default function DashboardPage() {
           <div className="relative z-10">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">✨ Profil Creativ AI</h3>
             <p className="text-indigo-100 leading-relaxed italic text-md mb-6">
-              "Astăzi, {state.childName || 'copilul'} pare fascinat de culorile calde și de poveștile cu animale. Activitatea sugerează o stare de curiozitate ridicată."
+              "Astăzi, {state.childName} a fost foarte creativ. Ultimele desene sugerează o stare de curiozitate și bucurie."
             </p>
             <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-xs">
-              <span className="font-bold text-indigo-200">RECOMANDARE:</span> O poveste despre junglă ar fi perfectă diseară.
+              <span className="font-bold text-indigo-200">SFAT:</span> Întreabă-l despre desenul cu {drawings.length > 0 ? 'ultimul desen' : 'pisica'} diseară.
             </div>
           </div>
         </div>
 
-        {/* Galeria de Artă */}
+        {/* Galeria de Artă - DINAMICĂ */}
         <div className="xl:col-span-2 bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-center">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-slate-800 flex items-center gap-3">
@@ -81,14 +91,33 @@ export default function DashboardPage() {
             <button className="text-indigo-600 text-sm font-bold hover:underline">Vezi tot</button>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="aspect-square bg-slate-50 rounded-[20px] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 group hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer">
-                <Palette className="w-6 h-6 text-slate-300 group-hover:text-indigo-400 transition-colors" />
-                <span className="text-[9px] font-black text-slate-300 group-hover:text-indigo-400 uppercase tracking-widest">Desen #{i}</span>
-              </div>
-            ))}
-          </div>
+          {drawings.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {drawings.map((draw) => (
+                <div key={draw.id} className="aspect-square bg-slate-50 rounded-[20px] border-2 border-slate-100 overflow-hidden group relative cursor-pointer hover:border-indigo-200 transition-all shadow-sm">
+                  {/* Imaginea Reală */}
+                  <img 
+                    src={draw.url} 
+                    alt="Desen Kosi" 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  
+                  {/* Overlay cu Data */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm p-2 translate-y-full group-hover:translate-y-0 transition-transform">
+                    <p className="text-[10px] text-white font-bold text-center">
+                      {new Date(draw.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Fallback dacă nu sunt desene
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50 h-48">
+                <ImageIcon className="w-10 h-10 mb-2 opacity-30" />
+                <p className="text-xs font-bold uppercase tracking-widest opacity-60">Încă nu sunt desene</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

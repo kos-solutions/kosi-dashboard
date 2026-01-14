@@ -31,7 +31,7 @@ export default function QuickControls() {
         Control Dispozitiv
       </h3>
       
-      {/* Butoane Rapide */}
+      {/* Butoane Sincronizate cu MainActivity.kt */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <button 
           onClick={() => handleCommand('STOP_AUDIO', null, 'Stop Audio')}
@@ -50,7 +50,7 @@ export default function QuickControls() {
         </button>
       </div>
 
-      {/* Zona Text-to-Speech (NOUĂ) */}
+      {/* Mesaje Vocale (TTS) */}
       <div className="border-t border-slate-100 pt-5">
         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
           <MessageSquare className="w-3 h-3" />
