@@ -5,7 +5,6 @@ import { LogOut, Trash2, Smartphone, ShieldAlert, Wifi, Battery } from 'lucide-r
 import { useState } from 'react'
 
 export default function SettingsPage() {
-  // Aici preluăm funcția de deconectare din Context
   const { state, disconnectDevice } = useDashboard()
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -51,7 +50,7 @@ export default function SettingsPage() {
              </div>
         </div>
 
-        {/* Status Tehnic */}
+        {/* Status Tehnic - Afișat doar dacă e conectat */}
         {state.deviceId && (
             <div className="mt-6 pt-6 border-t border-slate-100 flex gap-6">
                 <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -79,4 +78,29 @@ export default function SettingsPage() {
         {!showConfirm ? (
             <button 
                 onClick={() => setShowConfirm(true)}
-                className="flex items
+                className="flex items-center gap-2 px-5 py-3 bg-white text-red-600 font-bold rounded-xl border border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm"
+            >
+                <LogOut className="w-4 h-4" />
+                Deconectează Dispozitivul
+            </button>
+        ) : (
+            <div className="flex flex-col md:flex-row items-center gap-3 animate-in fade-in slide-in-from-left-2">
+                <button 
+                    onClick={disconnectDevice}
+                    className="flex items-center gap-2 px-5 py-3 bg-red-600 text-white font-bold rounded-xl border border-red-600 hover:bg-red-700 transition-all shadow-sm w-full md:w-auto justify-center"
+                >
+                    <Trash2 className="w-4 h-4" />
+                    Da, Deconectează acum
+                </button>
+                <button 
+                    onClick={() => setShowConfirm(false)}
+                    className="px-4 py-3 text-red-700 font-medium hover:underline w-full md:w-auto"
+                >
+                    Anulează
+                </button>
+            </div>
+        )}
+      </div>
+    </div>
+  )
+}
