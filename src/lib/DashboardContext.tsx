@@ -1,218 +1,158 @@
-"use client";
+'use client'
 
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, ReactNode, useState } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-// Definim tipurile de date
-type DeviceStatus = "online" | "offline" | "active";
+// --- Tipuri ---
+type DeviceStatus = 'offline' | 'online' | 'active'
 
 interface DashboardState {
-  deviceStatus: DeviceStatus;
-  batteryLevel: number;
-  wifiStatus: string;
-  lastSeen: string;
-  childName: string;
-  deviceId: string | null;
-  lastActivity: any | null;
+  deviceId: string | null
+  childName: string
+  deviceStatus: DeviceStatus
+  batteryLevel: number
+  wifiStatus: 'weak' | 'medium' | 'strong'
+  lastSeen: string | null
   todayStats: {
-    stories: number;
-    drawings: number;
-    games: number;
-    learningTime: number;
-  };
-  activities: any[]; 
+    stories: number
+    drawings: number
+    games: number
+    learningTime: number
+  }
+  lastActivity: {
+    type: string
+    detail: string
+    timestamp: string
+  } | null
+}
+
+interface ActivityItem {
+  id: string
+  event_type: string
+  event_data: any
+  created_at: string
 }
 
 interface DashboardContextType {
-  state: DashboardState;
-  activities: any[];
-  sendCommand: (commandType: string, payload?: any) => Promise<void>;
-  refreshData: () => Promise<void>;
+  state: DashboardState
+  activities: ActivityItem[]
+  sendCommand: (command: string, payload?: any) => Promise<void>
+  refreshData: () => Promise<void>
+  setDeviceId: (id: string) => void
+  disconnectDevice: () => void // 👈 Asta este funcția nouă critică!
 }
 
+// --- Initial State ---
 const initialState: DashboardState = {
-  deviceStatus: "offline",
-  batteryLevel: 0,
-  wifiStatus: "unknown",
-  lastSeen: new Date().toISOString(),
-  childName: "Kosi",
   deviceId: null,
-  lastActivity: null,
-  todayStats: {
-    stories: 0,
-    drawings: 0,
-    games: 0,
-    learningTime: 0,
-  },
-  activities: [], 
-};
+  childName: 'Copil',
+  deviceStatus: 'offline',
+  batteryLevel: 0,
+  wifiStatus: 'medium',
+  lastSeen: null,
+  todayStats: { stories: 0, drawings: 0, games: 0, learningTime: 0 },
+  lastActivity: null
+}
 
-const DashboardContext = createContext<DashboardContextType>({
-  state: initialState,
-  activities: [],
-  sendCommand: async () => {},
-  refreshData: async () => {},
-});
+const DashboardContext = createContext<DashboardContextType | undefined>(undefined)
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<DashboardState>(initialState);
-  const supabase = createClientComponentClient();
+  const [state, setState] = useState<DashboardState>(initialState)
+  const [activities, setActivities] = useState<ActivityItem[]>([])
+  const supabase = createClientComponentClient()
 
-  const sendCommand = async (commandType: string, payload: any = null) => {
-    try {
-      let targetDeviceId = state.deviceId;
-
-      if (!targetDeviceId) {
-          const { data: devices } = await supabase.from("devices").select("id").limit(1);
-          targetDeviceId = devices?.[0]?.id;
-      }
-
-      if (!targetDeviceId) {
-        console.error("Nu s-a găsit niciun dispozitiv asociat.");
-        return;
-      }
-
-      console.log(`Trimit comanda ${commandType} către ${targetDeviceId}`);
-
-      const { error } = await supabase.from("parent_commands").insert({
-        device_id: targetDeviceId,
-        command_type: commandType,
-        payload: payload,
-        is_executed: false,
-      });
-
-      if (error) throw error;
-      console.log("Comanda trimisă cu succes!");
-
-    } catch (error) {
-      console.error("Eroare la trimiterea comenzii:", error);
-    }
-  };
-
-  const refreshData = async () => {
-    try {
-        // 1. Fetch Device Info
-        const { data: devices } = await supabase
-            .from('devices')
-            .select('id, child_name')
-            .limit(1);
-
-        let currentDeviceId = state.deviceId;
-        let currentChildName = state.childName;
-
-        if (devices && devices.length > 0) {
-            currentDeviceId = devices[0].id;
-            if (devices[0].child_name) currentChildName = devices[0].child_name;
-        }
-
-        if (!currentDeviceId) return;
-
-        // 2. Fetch Status
-        const { data: sessions } = await supabase
-            .from('device_sessions')
-            .select('*')
-            .eq('device_id', currentDeviceId)
-            .order('last_seen', { ascending: false })
-            .limit(1);
-
-        // 3. Fetch Activități
-        const { data: activityLogs } = await supabase
-            .from('activity_log')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(10);
-
-        setState(prev => {
-            const newState = { ...prev };
-            newState.deviceId = currentDeviceId;
-            newState.childName = currentChildName;
-
-            // ⭐ FIX LOGIC STATUS: Prioritate 'status' din DB, apoi fallback la timp
-            if (sessions && sessions.length > 0) {
-                const session = sessions[0];
-                const lastSeenTime = new Date(session.last_seen).getTime();
-                const nowTime = new Date().getTime();
-                const diffMinutes = (nowTime - lastSeenTime) / 60000;
-
-                console.log(`[Dashboard] DB Status: ${session.status} | Diff: ${diffMinutes.toFixed(2)} min`);
-
-                // Dacă Worker-ul a trimis explicit "offline", respectăm asta imediat
-                if (session.status === 'offline') {
-                    newState.deviceStatus = 'offline';
-                } else {
-                    // Altfel, folosim timeout-ul de siguranță (2.5 min)
-                    // Dacă e "active" dar nu a mai dat semne de 3 minute -> offline
-                    newState.deviceStatus = diffMinutes < 2.5 ? 'online' : 'offline';
-                }
-
-                newState.batteryLevel = session.battery_level;
-                newState.wifiStatus = session.wifi_status;
-                newState.lastSeen = session.last_seen;
-            } else {
-                newState.deviceStatus = 'offline';
-            }
-
-            // Update Activities
-            if (activityLogs && activityLogs.length > 0) {
-                newState.activities = activityLogs;
-                
-                const lastLog = activityLogs[0];
-                let details = {};
-                
-                try {
-                    if (typeof lastLog.event_data === 'string') {
-                         details = JSON.parse(lastLog.event_data);
-                    } else {
-                         details = lastLog.event_data;
-                    }
-                } catch (e) {
-                    details = { detail: lastLog.event_data };
-                }
-
-                newState.lastActivity = {
-                    type: lastLog.event_type,
-                    ...details,
-                    timestamp: lastLog.created_at
-                };
-            }
-
-            return newState;
-        });
-    } catch (e) {
-        console.error("Eroare refreshData:", e);
-    }
-  };
-
-  // Realtime
+  // 1. La încărcare, verificăm LocalStorage
   useEffect(() => {
-    refreshData();
+    // Verificăm dacă suntem în browser (client-side)
+    if (typeof window !== 'undefined') {
+      const savedId = localStorage.getItem('kosi_device_id')
+      if (savedId) {
+        fetchDeviceData(savedId)
+      }
+    }
+  }, [])
 
-    const statusChannel = supabase
-      .channel('dashboard-status')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, refreshData)
-      .subscribe();
+  // 2. Funcție care aduce datele
+  const fetchDeviceData = async (deviceId: string) => {
+    try {
+      const { data: device } = await supabase
+        .from('devices')
+        .select('*')
+        .eq('device_id', deviceId)
+        .single()
+      
+      if (device) {
+        setState(prev => ({
+          ...prev,
+          deviceId: deviceId,
+          childName: device.child_name || 'Kosi',
+          deviceStatus: device.status === 'online' ? 'online' : 'offline',
+          lastSeen: device.last_seen
+        }))
 
-    const activityChannel = supabase
-      .channel('dashboard-activity')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
-      .subscribe();
+        const { data: acts } = await supabase
+          .from('activity_log')
+          .select('*')
+          .eq('device_id', deviceId)
+          .order('created_at', { ascending: false })
+          .limit(10)
 
-    return () => {
-      supabase.removeChannel(statusChannel);
-      supabase.removeChannel(activityChannel);
-    };
-  }, []);
+        if (acts) setActivities(acts)
+      }
+    } catch (e) {
+      console.error("Eroare la fetch:", e)
+    }
+  }
+
+  // 3. Trimite Comenzi
+  const sendCommand = async (command: string, payload: any = {}) => {
+    if (!state.deviceId) return
+    console.log(`Sending ${command} to ${state.deviceId}`, payload)
+    
+    await supabase.from('commands').insert({
+        device_id: state.deviceId,
+        command: command,
+        payload: payload,
+        status: 'pending'
+    })
+  }
+
+  // 4. Pairing (Setare ID)
+  const setDeviceId = (id: string) => {
+    localStorage.setItem('kosi_device_id', id)
+    fetchDeviceData(id)
+  }
+
+  // 5. DECONECTARE (Funcția Nouă) 🔌
+  const disconnectDevice = () => {
+    // 1. Ștergem din memorie
+    localStorage.removeItem('kosi_device_id')
+    localStorage.removeItem('kosi_child_name')
+    
+    // 2. Resetăm starea
+    setState(initialState)
+    setActivities([])
+    
+    // 3. Redirecționăm forțat pentru a cere codul din nou
+    window.location.href = '/dashboard/pairing'
+  }
 
   return (
     <DashboardContext.Provider value={{ 
-        state, 
-        activities: state.activities, 
-        sendCommand, 
-        refreshData 
+      state, 
+      activities, 
+      sendCommand, 
+      refreshData: async () => { if(state.deviceId) await fetchDeviceData(state.deviceId) },
+      setDeviceId,
+      disconnectDevice 
     }}>
       {children}
     </DashboardContext.Provider>
-  );
+  )
 }
 
-export const useDashboard = () => useContext(DashboardContext);
+export const useDashboard = () => {
+  const context = useContext(DashboardContext)
+  if (!context) throw new Error('useDashboard must be used within a DashboardProvider')
+  return context
+}
