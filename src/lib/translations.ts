@@ -33,7 +33,18 @@ export const translations = {
         success: "Connected successfully!", 
         error: "Invalid code" 
     },
-    settings: { title: "Settings", childName: "Child Name", save: "Save Changes", language: "Dashboard Language", device: "Connected Device" },
+    settings: { 
+        title: "Settings", 
+        childName: "Child Name", 
+        save: "Save Changes", 
+        language: "Dashboard Language", 
+        device: "Connected Device",
+        dangerZone: "Danger Zone",
+        deleteData: "Delete Activity Data",
+        deleteWarning: "This will wipe all history and drawings. Cannot be undone.",
+        confirm: "Are you sure you want to delete all data?",
+        deleted: "Data cleared successfully."
+    },
     voiceLabPage: {
         back: "Back to Dashboard",
         title: "Voice Lab 🎤",
@@ -46,7 +57,6 @@ export const translations = {
         cloneBtn: "Clone Voice",
         processing: "Processing..."
     },
-    // ... păstrăm restul (stats, gallery, controls, activity) la fel ca înainte dacă e cazul ...
     stats: { stories: "Stories", drawings: "Drawings", games: "Games", activeTime: "Active Time" },
     gallery: { title: "Today's Gallery", noDrawings: "No drawings today" },
     controls: { title: "Quick Controls", stop: "Stop All", greet: "Say Hello", light: "Light", sleep: "Sleep Mode" },
@@ -83,7 +93,18 @@ export const translations = {
         success: "Conectat cu succes!", 
         error: "Cod invalid" 
     },
-    settings: { title: "Setări", childName: "Nume Copil", save: "Salvează", language: "Limbă Dashboard", device: "Dispozitiv Conectat" },
+    settings: { 
+        title: "Setări", 
+        childName: "Nume Copil", 
+        save: "Salvează", 
+        language: "Limbă Dashboard", 
+        device: "Dispozitiv Conectat",
+        dangerZone: "Zona de Pericol",
+        deleteData: "Șterge Datele de Activitate",
+        deleteWarning: "Asta va șterge tot istoricul și desenele. Nu se poate anula.",
+        confirm: "Ești sigur că vrei să ștergi tot?",
+        deleted: "Date șterse cu succes."
+    },
     voiceLabPage: {
         back: "Înapoi la Dashboard",
         title: "Laborator Voce 🎤",
@@ -132,7 +153,18 @@ export const translations = {
         success: "Başarıyla bağlandı!", 
         error: "Geçersiz kod" 
     },
-    settings: { title: "Ayarlar", childName: "Çocuk İsmi", save: "Kaydet", language: "Panel Dili", device: "Bağlı Cihaz" },
+    settings: { 
+        title: "Ayarlar", 
+        childName: "Çocuk İsmi", 
+        save: "Kaydet", 
+        language: "Panel Dili", 
+        device: "Bağlı Cihaz",
+        dangerZone: "Tehlike Bölgesi",
+        deleteData: "Aktivite Verilerini Sil",
+        deleteWarning: "Bu işlem tüm geçmişi ve çizimleri siler. Geri alınamaz.",
+        confirm: "Tüm verileri silmek istediğinize emin misiniz?",
+        deleted: "Veriler başarıyla silindi."
+    },
     voiceLabPage: {
         back: "Panele Dön",
         title: "Ses Laboratuvarı 🎤",
@@ -181,7 +213,18 @@ export const translations = {
         success: "Uspešno povezano!", 
         error: "Nevažeći kod" 
     },
-    settings: { title: "Podešavanja", childName: "Ime Deteta", save: "Sačuvaj", language: "Jezik Table", device: "Povezan Uređaj" },
+    settings: { 
+        title: "Podešavanja", 
+        childName: "Ime Deteta", 
+        save: "Sačuvaj", 
+        language: "Jezik Table", 
+        device: "Povezan Uređaj",
+        dangerZone: "Opasna Zona",
+        deleteData: "Obriši Podatke o Aktivnosti",
+        deleteWarning: "Ovo će obrisati svu istoriju i crteže. Ne može se poništiti.",
+        confirm: "Da li ste sigurni da želite obrisati sve?",
+        deleted: "Podaci uspešno obrisani."
+    },
     voiceLabPage: {
         back: "Nazad na Tablu",
         title: "Glasovni Lab 🎤",
@@ -230,7 +273,18 @@ export const translations = {
         success: "Uspješno povezano!", 
         error: "Neispravan kod" 
     },
-    settings: { title: "Postavke", childName: "Ime Djeteta", save: "Spremi", language: "Jezik Ploče", device: "Povezan Uređaj" },
+    settings: { 
+        title: "Postavke", 
+        childName: "Ime Djeteta", 
+        save: "Spremi", 
+        language: "Jezik Ploče", 
+        device: "Povezan Uređaj",
+        dangerZone: "Opasna Zona",
+        deleteData: "Izbriši Podatke o Aktivnosti",
+        deleteWarning: "Ovo će izbrisati svu povijest i crteže. Ne može se poništiti.",
+        confirm: "Jeste li sigurni da želite sve izbrisati?",
+        deleted: "Podaci uspješno izbrisani."
+    },
     voiceLabPage: {
         back: "Natrag na Ploču",
         title: "Glasovni Lab 🎤",
@@ -279,7 +333,18 @@ export const translations = {
         success: "Успешно свързване!", 
         error: "Невалиден код" 
     },
-    settings: { title: "Настройки", childName: "Име на детето", save: "Запази", language: "Език на таблото", device: "Свързано устройство" },
+    settings: { 
+        title: "Настройки", 
+        childName: "Име на детето", 
+        save: "Запази", 
+        language: "Език на таблото", 
+        device: "Свързано устройство",
+        dangerZone: "Опасна Зона",
+        deleteData: "Изтрий Данни за Активност",
+        deleteWarning: "Това ще изтрие цялата история и рисунки. Не може да се отмени.",
+        confirm: "Сигурни ли сте, че искате да изтриете всичко?",
+        deleted: "Данните са изчистени успешно."
+    },
     voiceLabPage: {
         back: "Назад към Таблото",
         title: "Гласова Лаборатория 🎤",
@@ -328,7 +393,18 @@ export const translations = {
         success: "Συνδέθηκε επιτυχώς!", 
         error: "Άκυρος κωδικός" 
     },
-    settings: { title: "Ρυθμίσεις", childName: "Όνομα Παιδιού", save: "Αποθήκευση", language: "Γλώσσα", device: "Συσκευή" },
+    settings: { 
+        title: "Ρυθμίσεις", 
+        childName: "Όνομα Παιδιού", 
+        save: "Αποθήκευση", 
+        language: "Γλώσσα", 
+        device: "Συσκευή",
+        dangerZone: "Ζώνη Κινδύνου",
+        deleteData: "Διαγραφή Δεδομένων",
+        deleteWarning: "Αυτό θα διαγράψει όλο το ιστορικό. Δεν αναιρείται.",
+        confirm: "Είστε σίγουροι ότι θέλετε να τα διαγράψετε όλα;",
+        deleted: "Τα δεδομένα διαγράφηκαν επιτυχώς."
+    },
     voiceLabPage: {
         back: "Πίσω στο Ταμπλό",
         title: "Εργαστήριο Φωνής 🎤",
@@ -377,7 +453,18 @@ export const translations = {
         success: "Lidhur me sukses!", 
         error: "Kod i pavlefshëm" 
     },
-    settings: { title: "Cilësimet", childName: "Emri i Fëmijës", save: "Ruaj", language: "Gjuha e Panelit", device: "Pajisja e Lidhur" },
+    settings: { 
+        title: "Cilësimet", 
+        childName: "Emri i Fëmijës", 
+        save: "Ruaj", 
+        language: "Gjuha e Panelit", 
+        device: "Pajisja e Lidhur",
+        dangerZone: "Zona e Rrezikut",
+        deleteData: "Fshi Të Dhënat e Aktivitetit",
+        deleteWarning: "Kjo do të fshijë gjithë historikun. Nuk mund të zhbëhet.",
+        confirm: "Jeni të sigurt që doni të fshini gjithçka?",
+        deleted: "Të dhënat u pastruan me sukses."
+    },
     voiceLabPage: {
         back: "Kthehu në Panel",
         title: "Laboratori i Zërit 🎤",
