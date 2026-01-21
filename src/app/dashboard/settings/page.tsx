@@ -1,105 +1,26 @@
 'use client'
-
 import { useDashboard } from '@/lib/DashboardContext'
-import { LogOut, Trash2, Smartphone, ShieldAlert, Wifi, Battery } from 'lucide-react'
-import { useState } from 'react'
 
 export default function SettingsPage() {
-  const { state, disconnectDevice } = useDashboard()
-  const [showConfirm, setShowConfirm] = useState(false)
+  const { t, state } = useDashboard()
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Setări Dispozitiv</h1>
-        <p className="text-slate-500 mt-1">Gestionează conexiunea cu jucăria Kosi.</p>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <h1 className="text-3xl font-bold text-slate-800">{t.settings.title}</h1>
+
+      {/* Card Nume Copil */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">{t.settings.childName}</label>
+        <div className="flex gap-4">
+            <input type="text" defaultValue={state.childName} className="flex-1 p-3 rounded-xl border border-slate-200" />
+            <button className="bg-slate-900 text-white px-6 rounded-xl font-medium hover:bg-slate-800">{t.settings.save}</button>
+        </div>
       </div>
 
-      {/* Card Info Dispozitiv */}
-      <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100">
-        <div className="flex flex-col md:flex-row md:items-start justify-between mb-6 gap-4">
-            <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shrink-0">
-                    <Smartphone className="w-6 h-6" />
-                </div>
-                <div className="overflow-hidden">
-                    <h3 className="text-lg font-bold text-slate-800">Dispozitiv Asociat</h3>
-                    <p className="text-sm text-slate-500 truncate">
-                        UUID: <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-700 select-all">{state.deviceId || 'Niciunul'}</span>
-                    </p>
-                </div>
-            </div>
-            <div className={`self-start px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${state.deviceId ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                {state.deviceId ? 'Conectat' : 'Neasociat'}
-            </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nume Copil</label>
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium">
-                    {state.childName}
-                </div>
-             </div>
-             <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Ultima sincronizare</label>
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium">
-                    {state.lastSeen ? new Date(state.lastSeen).toLocaleString() : '-'}
-                </div>
-             </div>
-        </div>
-
-        {/* Status Tehnic - Afișat doar dacă e conectat */}
-        {state.deviceId && (
-            <div className="mt-6 pt-6 border-t border-slate-100 flex gap-6">
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <Battery className={`w-4 h-4 ${state.batteryLevel < 20 ? 'text-red-500' : 'text-slate-400'}`} />
-                    Baterie: <span className="font-bold">{state.batteryLevel}%</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <Wifi className="w-4 h-4 text-slate-400" />
-                    WiFi: <span className="font-bold">{state.wifiStatus === 'strong' ? 'Puternic' : 'Mediu'}</span>
-                </div>
-            </div>
-        )}
-      </div>
-
-      {/* Card Danger Zone (Deconectare) */}
-      <div className="bg-red-50 rounded-3xl p-6 md:p-8 border border-red-100">
-        <div className="flex items-center gap-3 mb-4">
-            <ShieldAlert className="w-6 h-6 text-red-600" />
-            <h3 className="text-lg font-bold text-red-900">Zonă Periculoasă</h3>
-        </div>
-        <p className="text-red-700/80 mb-6 text-sm max-w-2xl">
-            Dacă deconectezi dispozitivul, legătura cu acest browser va fi ștearsă. Va trebui să introduci din nou codul de 6 cifre de pe ecranul jucăriei pentru a-l controla din nou.
-        </p>
-
-        {!showConfirm ? (
-            <button 
-                onClick={() => setShowConfirm(true)}
-                className="flex items-center gap-2 px-5 py-3 bg-white text-red-600 font-bold rounded-xl border border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm"
-            >
-                <LogOut className="w-4 h-4" />
-                Deconectează Dispozitivul
-            </button>
-        ) : (
-            <div className="flex flex-col md:flex-row items-center gap-3 animate-in fade-in slide-in-from-left-2">
-                <button 
-                    onClick={disconnectDevice}
-                    className="flex items-center gap-2 px-5 py-3 bg-red-600 text-white font-bold rounded-xl border border-red-600 hover:bg-red-700 transition-all shadow-sm w-full md:w-auto justify-center"
-                >
-                    <Trash2 className="w-4 h-4" />
-                    Da, Deconectează acum
-                </button>
-                <button 
-                    onClick={() => setShowConfirm(false)}
-                    className="px-4 py-3 text-red-700 font-medium hover:underline w-full md:w-auto"
-                >
-                    Anulează
-                </button>
-            </div>
-        )}
+      {/* Card Device Info */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+         <h3 className="font-bold text-lg mb-4">{t.settings.device}</h3>
+         <p className="text-slate-600">{state.deviceId ? `ID: ${state.deviceId}` : 'Not connected'}</p>
       </div>
     </div>
   )
