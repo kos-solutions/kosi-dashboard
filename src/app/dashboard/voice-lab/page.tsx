@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 
 export default function VoiceLabPage() {
   const router = useRouter()
-  const { state } = useDashboard()
+  const { state, t } = useDashboard() // <--- T
   const [isRecording, setIsRecording] = useState(false)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -34,14 +34,12 @@ export default function VoiceLabPage() {
 
       recorder.start()
       setIsRecording(true)
-      
-      // Timer pentru durată
       setRecordingDuration(0)
       timerRef.current = setInterval(() => {
         setRecordingDuration(prev => prev + 1)
       }, 1000)
     } catch (err) {
-      toast.error("Nu avem acces la microfon. Verifică setările browser-ului.")
+      toast.error("Microphone access denied.")
     }
   }
 
@@ -52,86 +50,62 @@ export default function VoiceLabPage() {
   }
 
   const uploadVoice = async () => {
-  let activeDeviceId = state.deviceId;
-
-  // 1. Dacă ID-ul lipsește din context, îl căutăm direct în DB (Fallback)
-  if (!activeDeviceId) {
-    console.log("DeviceId lipsește din context, încercăm recuperarea directă...");
-    const { data: device } = await supabase.from('devices').select('id').limit(1).maybeSingle();
-    if (device) activeDeviceId = device.id;
-  }
-
-  // 2. Dacă tot nu avem ID, folosim ID-ul tău fix (Hardcoded) ca ultimă soluție pentru a trece de test
-  if (!activeDeviceId) {
-    activeDeviceId = "00a172d8d6a6abec"; 
-  }
-
-  if (!audioBlob) {
-    toast.error("Înregistrează audio mai întâi!");
-    return;
-  }
-
-  setIsUploading(true);
-  
-  const reader = new FileReader();
-  reader.readAsDataURL(audioBlob);
-  reader.onloadend = async () => {
-    const base64Audio = (reader.result as string).split(',')[1];
-    
-    try {
-      console.log("Trimitere către clonare pentru:", activeDeviceId);
-      const { data, error } = await supabase.functions.invoke('clone-voice', {
-        body: {
-          device_id: activeDeviceId,
-          audio_base64: base64Audio,
-        },
-      });
-
-      if (error) throw error;
-
-      toast.success("Vocea a fost clonată cu succes!");
-      router.push('/dashboard');
-    } catch (err: any) {
-      console.error("Eroare la clonare:", err);
-      toast.error("Eroare: " + (err.message || "Verifică logurile funcției"));
-    } finally {
-      setIsUploading(false);
+    let activeDeviceId = state.deviceId;
+    if (!activeDeviceId) {
+        // Fallback rapid
+        const { data: device } = await supabase.from('devices').select('id').limit(1).maybeSingle();
+        if (device) activeDeviceId = device.id;
     }
+    if (!activeDeviceId) activeDeviceId = "00a172d8d6a6abec"; 
+
+    if (!audioBlob) return;
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onloadend = async () => {
+      const base64Audio = (reader.result as string).split(',')[1];
+      try {
+        const { error } = await supabase.functions.invoke('clone-voice', {
+          body: { device_id: activeDeviceId, audio_base64: base64Audio },
+        });
+        if (error) throw error;
+        toast.success(t.voiceLabPage.success);
+        router.push('/dashboard');
+      } catch (err: any) {
+        toast.error("Error: " + err.message);
+      } finally {
+        setIsUploading(false);
+      }
+    };
   };
-};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white p-6">
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
         <button 
           onClick={() => router.back()}
           className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors mb-8"
         >
           <ArrowLeft className="w-5 h-5" />
-          Înapoi la Dashboard
+          {t.voiceLabPage.back}
         </button>
 
         <div className="bg-white rounded-3xl p-8 shadow-xl border border-indigo-50">
           <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Voice Lab 🎤</h1>
-            <p className="text-gray-500">Înregistrează-ți vocea pentru a-i citi copilului tău povești magice.</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.voiceLabPage.title}</h1>
+            <p className="text-gray-500">{t.voiceLabPage.subtitle}</p>
           </div>
 
-          {/* Text de citit */}
           <div className="bg-indigo-50 rounded-2xl p-6 mb-8 border border-indigo-100">
             <div className="flex items-center gap-2 text-indigo-700 mb-3 font-semibold text-sm uppercase tracking-wider">
               <Info className="w-4 h-4" />
-              Citește cu voce tare:
+              {t.voiceLabPage.readAloud}
             </div>
             <p className="text-lg text-gray-700 leading-relaxed italic">
-              "Era odată ca niciodată, un tărâm magic unde norii erau făcuți din vată de zahăr. 
-              Kosi, micul robot explorator, mergea în fiecare zi prin pădurea de smarald 
-              pentru a învăța lucruri noi despre prietenie și curaj..."
+              "{t.voiceLabPage.storyText}"
             </p>
           </div>
 
-          {/* UI de înregistrare */}
           <div className="flex flex-col items-center justify-center py-10">
             <AnimatePresence mode='wait'>
               {!audioBlob || isRecording ? (
@@ -166,20 +140,20 @@ export default function VoiceLabPage() {
                   <div className="p-4 bg-green-100 rounded-full">
                     <CheckCircle className="w-12 h-12 text-green-600" />
                   </div>
-                  <p className="font-semibold text-gray-800">Înregistrare finalizată! ({recordingDuration}s)</p>
+                  <p className="font-semibold text-gray-800">{t.voiceLabPage.success} ({recordingDuration}s)</p>
                   <div className="flex gap-4">
                     <button 
                       onClick={() => setAudioBlob(null)}
                       className="text-sm text-gray-500 hover:text-red-500 underline"
                     >
-                      Șterge și refă
+                      {t.voiceLabPage.delete}
                     </button>
                     <button
                       onClick={uploadVoice}
                       disabled={isUploading}
                       className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
                     >
-                      {isUploading ? "Se procesează..." : "Clonează Vocea"}
+                      {isUploading ? t.voiceLabPage.processing : t.voiceLabPage.cloneBtn}
                       <Upload className="w-5 h-5" />
                     </button>
                   </div>

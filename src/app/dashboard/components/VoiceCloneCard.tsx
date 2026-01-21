@@ -8,43 +8,34 @@ import { useDashboard } from '@/lib/DashboardContext'
 
 export default function VoiceCloneCard() {
   const router = useRouter()
-  const { state } = useDashboard()
+  const { state, t } = useDashboard() // <--- IMPORT 't'
   
   const [hasVoice, setHasVoice] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function checkVoiceStatus() {
-      // Dacă nu avem un deviceId selectat încă în context, nu putem verifica
       if (!state.deviceId) {
         setIsLoading(false)
         return
       }
-
       try {
         setIsLoading(true)
-        // Verificăm în tabelul device_voices dacă există o voce activă
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('device_voices')
           .select('is_active')
           .eq('device_id', state.deviceId)
           .eq('is_active', true)
           .maybeSingle()
-
-        if (data) {
-          setHasVoice(true)
-        } else {
-          setHasVoice(false)
-        }
+        setHasVoice(!!data)
       } catch (err) {
-        console.error("Eroare la verificarea statusului vocii:", err)
+        console.error(err)
       } finally {
         setIsLoading(false)
       }
     }
-
     checkVoiceStatus()
-  }, [state.deviceId]) // Se re-execută ori de câte ori se schimbă dispozitivul selectat
+  }, [state.deviceId])
 
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-indigo-50 hover:border-indigo-200 transition-all">
@@ -53,8 +44,8 @@ export default function VoiceCloneCard() {
           <Mic className="w-6 h-6 text-indigo-600" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Vocea Părintelui (AI)</h3>
-          <p className="text-sm text-gray-500">Kosi va suna exact ca tine</p>
+          <h3 className="text-lg font-semibold text-gray-900">{t.voiceCloneCard.title}</h3>
+          <p className="text-sm text-gray-500">{t.voiceCloneCard.subtitle}</p>
         </div>
       </div>
 
@@ -67,11 +58,11 @@ export default function VoiceCloneCard() {
           {hasVoice ? (
             <div className="flex items-center gap-2 text-green-700 bg-green-50 p-3 rounded-xl mb-4 border border-green-100">
               <CheckCircle className="w-5 h-5" />
-              <span className="text-sm font-medium">Voce activă și gata de povești!</span>
+              <span className="text-sm font-medium">{t.voiceCloneCard.active}</span>
             </div>
           ) : (
             <div className="text-sm text-gray-600 mb-4 leading-relaxed">
-              Înregistrează 60 de secunde din vocea ta pentru a crea o experiență magică și personalizată.
+              {t.voiceCloneCard.inactive}
             </div>
           )}
 
@@ -83,7 +74,7 @@ export default function VoiceCloneCard() {
                 : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg'
             }`}
           >
-            {hasVoice ? 'Gestionează Vocea' : 'Începe Clonarea'}
+            {hasVoice ? t.voiceCloneCard.btnManage : t.voiceCloneCard.btnStart}
             <ArrowRight className="w-4 h-4" />
           </button>
         </>
