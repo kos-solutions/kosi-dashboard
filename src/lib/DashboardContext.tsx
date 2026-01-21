@@ -2,7 +2,7 @@
 
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { translations, Language } from "./translations"; // <--- IMPORT NOU
+import { translations, Language } from "./translations";
 
 // --- TIPURI ---
 type DeviceStatus = "online" | "offline" | "active";
@@ -35,9 +35,9 @@ interface DashboardState {
 interface DashboardContextType {
   state: DashboardState;
   activities: ActivityItem[];
-  language: Language; // <--- CÂMP NOU
-  setLanguage: (lang: Language) => void; // <--- FUNCȚIE NOUĂ
-  t: typeof translations['ro']; // <--- HELPER TRADUCERI
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: typeof translations['en']; // Folosim tipul de la engleză ca bază
   sendCommand: (commandType: string, payload?: any) => Promise<void>;
   refreshData: () => Promise<void>;
   disconnectDevice: () => void;
@@ -55,12 +55,12 @@ const initialState: DashboardState = {
   activities: [], 
 };
 
-// @ts-ignore (Inițializare simplificată)
+// @ts-ignore
 const DashboardContext = createContext<DashboardContextType>({});
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DashboardState>(initialState);
-  const [language, setLanguageState] = useState<Language>('en'); // Default engleza pt siguranta
+  const [language, setLanguageState] = useState<Language>('en');
   const supabase = createClientComponentClient();
 
   // Load language preference
@@ -86,12 +86,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Când avem deviceId, facem refresh
   useEffect(() => {
     if (state.deviceId) {
       refreshData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.deviceId]);
+
+  // ✅ FIX REFRESH: Auto-Refresh la fiecare 30 de secunde
+  // Asta asigură că dacă trece timpul și nu mai primim semnal, statusul trece pe Offline automat
+  useEffect(() => {
+    if (!state.deviceId) return;
+
+    const intervalId = setInterval(() => {
+        // Nu vrem să facem spam la rețea, dar vrem să recalculăm statusul
+        // refreshData face fetch, ceea ce e ok la 30s
+        refreshData(); 
+    }, 30000); // 30 secunde
+
+    return () => clearInterval(intervalId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.deviceId]);
+
 
   const sendCommand = async (commandType: string, payload: any = null) => {
     try {
@@ -121,12 +138,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }
         if (!currentDeviceId) return;
 
-        // Fetch Device
+        // Fetch Device Info
         const { data: deviceData } = await supabase.from('devices').select('child_name').eq('id', currentDeviceId).single();
         let currentChildName = state.childName;
         if (deviceData) currentChildName = deviceData.child_name || 'Kosi';
 
-        // Fetch Status (MODIFICAT: Verificăm dacă sesiunea a fost updatată în ultimele 2 minute)
+        // Fetch Status (Sesiuni)
         const { data: sessions } = await supabase.from('device_sessions').select('*').eq('device_id', currentDeviceId).order('last_seen', { ascending: false }).limit(1);
 
         // Fetch Activities
@@ -141,11 +158,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
                 const session = sessions[0];
                 const lastSeenTime = new Date(session.last_seen).getTime();
                 const nowTime = new Date().getTime();
+                
+                // Diferența în minute
                 const diffMinutes = (nowTime - lastSeenTime) / 60000;
 
-                // Dacă telefonul n-a mai dat semn de viață de 2 minute, e offline
-                newState.deviceStatus = diffMinutes < 2 ? 'online' : 'offline';
+                // ⚠️ LOGICĂ STATUS: Dacă au trecut mai puțin de 2.5 min, e Online
+                newState.deviceStatus = diffMinutes < 2.5 ? 'online' : 'offline';
                 newState.batteryLevel = session.battery_level;
+                newState.lastSeen = session.last_seen;
             } else {
                 newState.deviceStatus = 'offline';
             }
@@ -165,7 +185,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Realtime
+  // Realtime Subscriptions (Rămân active pentru update-uri instantanee)
   useEffect(() => {
     const statusChannel = supabase.channel('dashboard-status')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'device_sessions' }, refreshData)
@@ -186,7 +206,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         activities: state.activities, 
         language,
         setLanguage,
-        t: translations[language], // Aici expunem traducerile curente
+        t: translations[language], 
         sendCommand, 
         refreshData,
         disconnectDevice 
