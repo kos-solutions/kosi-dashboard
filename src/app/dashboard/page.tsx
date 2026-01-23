@@ -22,10 +22,11 @@ export default function DashboardPage() {
   const [message, setMessage] = useState('')
   const [targetDeviceId, setTargetDeviceId] = useState<string | null>(null)
 
-  // 1. Căutăm ID-ul real al device-ului pentru a ști unde trimitem comanda
+  // 1. Căutăm ID-ul real al device-ului
   useEffect(() => {
     const fetchDevice = async () => {
-         // Luăm primul device găsit în bază (pentru simplitate)
+         // Luăm primul device găsit în bază
+         // ATENȚIE: Aici luăm 'id' din tabela 'devices' care este UUID-ul corect
          const { data } = await supabase.from('devices').select('id').limit(1)
          if (data && data.length > 0) {
              setTargetDeviceId(data[0].id)
@@ -35,23 +36,24 @@ export default function DashboardPage() {
     fetchDevice()
   }, [])
 
-  // 2. Funcția care trimite efectiv comanda în Supabase
+  // 2. Funcția modificată pentru coloana 'user_id'
   const sendCommand = async (type: string, payload: any = {}) => {
     if (!targetDeviceId) {
-      alert("Nu s-a găsit Jucăria conectată! Asigură-te că ai pornit aplicația Android măcar o dată.")
+      alert("Nu s-a găsit Jucăria conectată!")
       return
     }
     
     setLoadingCmd(true)
     try {
+      // 👇 AICI ESTE SCHIMBAREA: Folosim 'user_id' în loc de 'device_id'
       const { error } = await supabase.from('parent_commands').insert({
-        device_id: targetDeviceId,
+        user_id: targetDeviceId, // <--- Aici scriem în user_id
         command_type: type,
         payload: payload
       })
       
       if (error) throw error
-      // Feedback vizual rapid - nu e nevoie de alert
+      console.log("✅ Comandă trimisă cu succes!")
     } catch (e: any) {
       alert(`Eroare comandă: ${e.message}`)
     } finally {
