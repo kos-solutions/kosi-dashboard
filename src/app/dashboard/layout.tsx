@@ -1,28 +1,50 @@
+'use client'
+
+import { useState } from "react";
 import { DashboardProvider } from "@/lib/DashboardContext";
 import Sidebar from "./components/Sidebar";
+import { Menu, X } from "lucide-react"; // Importăm iconițele
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   return (
     <DashboardProvider>
-      {/* Schimbare critică: flex-col pe mobil, flex-row pe ecrane medii+ */}
       <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC]">
         
-        {/* Sidebar-ul: Pe mobil îl poți ascunde (hidden) sau lăsa sus. 
-            Recomandare rapidă: Ascunde-l pe mobil momentan dacă nu ai meniu hamburger, 
-            sau lasă-l 'w-full' pe mobil.
-            Aici îl fac vizibil doar pe Desktop (md:block) pentru a curăța ecranul mobil. 
-        */}
-        <div className="hidden md:block md:w-64 flex-shrink-0">
-            <Sidebar />
+        {/* Header Mobil - Apare doar pe ecran mic */}
+        <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 text-white">
+          <span className="font-bold tracking-tight">KOSI DASHBOARD</span>
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2">
+            {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+          </button>
         </div>
+
+        {/* Sidebar-ul: Acum este Overlay pe mobil, Sidebar fix pe Desktop */}
+        <div className={`
+          ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
+          md:translate-x-0 fixed md:relative z-50 w-64 h-full 
+          transition-transform duration-300 ease-in-out
+          md:block flex-shrink-0
+        `}>
+            {/* Închidem meniul când dăm click pe un link (opțional, pasat ca prop) */}
+            <Sidebar onNavigate={() => setIsMenuOpen(false)} />
+        </div>
+
+        {/* Overlay negru când meniul e deschis pe mobil */}
+        {isMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+            onClick={() => setIsMenuOpen(false)}
+          />
+        )}
 
         {/* Zona principală de conținut */}
         <main className="flex-1 overflow-y-auto w-full">
-          {/* Padding dinamic: px-4 pe mobil, px-12 pe PC */}
           <div className="w-full max-w-7xl mx-auto px-4 py-6 md:px-8 md:py-10">
             {children}
           </div>

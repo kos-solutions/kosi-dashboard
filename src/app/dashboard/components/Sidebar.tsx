@@ -6,7 +6,7 @@ import { LayoutDashboard, Mic2, Settings, Link as LinkIcon, LogOut } from 'lucid
 import { supabase } from '@/lib/supabaseClient'
 import { useDashboard } from '@/lib/DashboardContext'
 
-// Definim lista de limbi pentru a le mapa ușor
+// Definim lista de limbi (păstrată din originalul tău)
 const LANGUAGES = [
   { code: 'en', flag: '🇬🇧' },
   { code: 'ro', flag: '🇷🇴' },
@@ -18,9 +18,18 @@ const LANGUAGES = [
   { code: 'sq', flag: '🇦🇱' },
 ] as const;
 
-export default function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const { t, language, setLanguage } = useDashboard()
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/'
+  }
 
   const menuItems = [
     { name: t.sidebar.dashboard, href: '/dashboard', icon: LayoutDashboard },
@@ -29,33 +38,27 @@ export default function Sidebar() {
     { name: t.sidebar.settings, href: '/dashboard/settings', icon: Settings },
   ]
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
-  }
-
   return (
-    <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen sticky top-0 border-r border-slate-800">
-      <div className="p-8 pb-4">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-indigo-500/20">
-            <span className="text-2xl">🤖</span>
+    <aside className="flex flex-col w-64 h-full min-h-screen bg-slate-900 text-slate-300 shadow-xl">
+      <div className="p-6">
+        <div className="flex items-center gap-3 px-2 mb-8">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <span className="text-white font-bold text-xl">K</span>
           </div>
-          <span className="text-2xl font-black tracking-tighter text-white">KOSI</span>
-        </Link>
-      </div>
+          <span className="text-white font-bold text-xl tracking-tight">Kosi Admin</span>
+        </div>
 
-      {/* --- GRID SELECTOR LIMBĂ --- */}
-      <div className="px-6 mb-6">
-        <p className="text-[10px] uppercase text-slate-500 font-bold mb-2 px-2">Language / Limbă</p>
-        <div className="grid grid-cols-4 gap-2">
+        {/* Selector Limbă - Restaurat complet */}
+        <div className="flex flex-wrap items-center gap-2 p-1 bg-slate-800/50 rounded-2xl mb-8">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}
-              onClick={() => setLanguage(lang.code)}
+              onClick={() => setLanguage(lang.code as any)}
               className={`
-                flex items-center justify-center p-1.5 rounded-lg transition-all hover:scale-110
-                ${language === lang.code ? 'bg-indigo-600 shadow-md ring-1 ring-white/20' : 'bg-slate-800 hover:bg-slate-700 text-slate-400'}
+                flex-1 flex items-center justify-center py-2 rounded-xl transition-all duration-200
+                ${language === lang.code 
+                  ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-white/20' 
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-400'}
               `}
               title={lang.code.toUpperCase()}
             >
@@ -72,6 +75,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => onNavigate?.()} 
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                 isActive 
                   ? 'bg-indigo-600 text-white shadow-md' 
@@ -88,10 +92,10 @@ export default function Sidebar() {
       <div className="p-4 mt-auto border-t border-slate-800">
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-3 px-4 py-3 w-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
+          className="flex items-center gap-3 px-4 py-3 w-full text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all duration-200"
         >
           <LogOut className="w-5 h-5" />
-          <span className="font-medium">{t.sidebar.signOut}</span>
+          <span className="font-medium">Sign Out</span>
         </button>
       </div>
     </aside>
