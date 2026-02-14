@@ -25,11 +25,13 @@ interface DashboardState {
   pairingCode: string;
   activities: ActivityItem[];
   drawings: any[];
+  // 👇 AM ADĂUGAT ASTA PENTRU A REPARA EROAREA DIN STATUSCARD
+  lastActivity: any; 
 }
 
 interface DashboardContextType {
   state: DashboardState;
-  activities: ActivityItem[]; // Critic pentru build-ul Vercel
+  activities: ActivityItem[]; 
   language: Language;
   setLanguage: (lang: Language) => void;
   t: typeof translations['ro'];
@@ -43,6 +45,7 @@ const DashboardContext = createContext<DashboardContextType | undefined>(undefin
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const supabase = createClientComponentClient();
   const [language, setLanguage] = useState<Language>('ro');
+  
   const [state, setDashboardState] = useState<DashboardState>({
     deviceStatus: "offline",
     batteryLevel: 0,
@@ -53,11 +56,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     pairingCode: "....",
     activities: [],
     drawings: [],
+    lastActivity: null // Inițializăm cu null
   });
 
   const refreshData = async () => {
     try {
-      // Căutăm device-ul salvat local sau ultimul activ (pentru showcase)
       const savedHardwareId = typeof window !== 'undefined' ? localStorage.getItem('kosi_device_id') : null;
       
       let query = supabase.from('devices').select('*');
@@ -71,11 +74,21 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { data: deviceData } = await query.maybeSingle();
 
       if (deviceData) {
-        // Folosim UUID-ul (deviceData.id) pentru a trage restul datelor
         const [activityLogs, drawingsData] = await Promise.all([
           supabase.from('activity_log').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(20),
           supabase.from('drawings').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(12)
         ]);
+
+        // Pregătim ultima activitate pentru StatusCard
+        const latestRaw = activityLogs.data?.[0];
+        // Facem un mic "mapping" ca să aibă câmpurile pe care le așteaptă StatusCard (type, detail)
+        const mappedLastActivity = latestRaw ? {
+            ...latestRaw,
+            type: latestRaw.event_type, 
+            detail: typeof latestRaw.event_data === 'string' && latestRaw.event_data.includes('{') 
+                ? JSON.parse(latestRaw.event_data).detail 
+                : latestRaw.event_type
+        } : null;
 
         setDashboardState(prev => ({
           ...prev,
@@ -84,18 +97,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           childName: deviceData.child_name || "Micuțul tău",
           activities: activityLogs.data || [],
           drawings: drawingsData.data || [],
-          deviceStatus: deviceData.is_paired ? "active" : "offline"
+          deviceStatus: deviceData.is_paired ? "active" : "offline",
+          lastActivity: mappedLastActivity // Populăm câmpul
         }));
       }
     } catch (e) {
-      console.error("Eroare Sincronizare:", e);
+      console.error("Sync Error:", e);
     }
   };
 
   useEffect(() => {
     refreshData();
     
-    // Subscripție Realtime pentru orice schimbare (pairing code nou, desene noi etc.)
     const channel = supabase.channel('global-dashboard-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, refreshData)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
