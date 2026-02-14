@@ -21,7 +21,7 @@ interface DashboardState {
   wifiStatus: string;
   lastSeen: string;
   childName: string;
-  deviceId: string | null; // Acesta va fi UUID-ul (id)
+  deviceId: string | null;
   pairingCode: string;
   activities: ActivityItem[];
   drawings: any[];
@@ -29,6 +29,7 @@ interface DashboardState {
 
 interface DashboardContextType {
   state: DashboardState;
+  activities: ActivityItem[]; // Critic pentru build-ul Vercel
   language: Language;
   setLanguage: (lang: Language) => void;
   t: typeof translations['ro'];
@@ -56,49 +57,52 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const refreshData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // Căutăm device-ul salvat local sau ultimul activ (pentru showcase)
+      const savedHardwareId = typeof window !== 'undefined' ? localStorage.getItem('kosi_device_id') : null;
+      
+      let query = supabase.from('devices').select('*');
+      
+      if (savedHardwareId) {
+        query = query.eq('device_id', savedHardwareId);
+      } else {
+        query = query.order('last_active_at', { ascending: false }).limit(1);
+      }
 
-      // 1. Găsim dispozitivul asociat utilizatorului curent
-      const { data: deviceData } = await supabase
-        .from('devices')
-        .select('*')
-        .eq('user_id', user.id) // IMPORTANT: Căutăm device-ul testerului logat
-        .maybeSingle();
+      const { data: deviceData } = await query.maybeSingle();
 
-      if (!deviceData) return;
+      if (deviceData) {
+        // Folosim UUID-ul (deviceData.id) pentru a trage restul datelor
+        const [activityLogs, drawingsData] = await Promise.all([
+          supabase.from('activity_log').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(20),
+          supabase.from('drawings').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(12)
+        ]);
 
-      // 2. Tragem activitățile și desenele folosind UUID-ul (deviceData.id)
-      // Folosind deviceData.id (UUID) eliminăm eroarea 22P02
-      const [activityLogs, drawingsData] = await Promise.all([
-        supabase.from('activity_log').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(20),
-        supabase.from('drawings').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(10)
-      ]);
-
-      setDashboardState(prev => ({
-        ...prev,
-        deviceId: deviceData.id,
-        pairingCode: deviceData.pairing_code,
-        childName: deviceData.child_name || "Micuțul tău",
-        activities: activityLogs.data || [],
-        drawings: drawingsData.data || [],
-        deviceStatus: deviceData.is_paired ? "active" : "offline"
-      }));
+        setDashboardState(prev => ({
+          ...prev,
+          deviceId: deviceData.id,
+          pairingCode: deviceData.pairing_code,
+          childName: deviceData.child_name || "Micuțul tău",
+          activities: activityLogs.data || [],
+          drawings: drawingsData.data || [],
+          deviceStatus: deviceData.is_paired ? "active" : "offline"
+        }));
+      }
     } catch (e) {
-      console.error("Sync Error:", e);
+      console.error("Eroare Sincronizare:", e);
     }
   };
 
   useEffect(() => {
     refreshData();
     
-    // Subscripție Realtime pentru activitate nouă
-    const activityChannel = supabase.channel('dashboard-sync')
+    // Subscripție Realtime pentru orice schimbare (pairing code nou, desene noi etc.)
+    const channel = supabase.channel('global-dashboard-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, refreshData)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'devices' }, refreshData)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'drawings' }, refreshData)
       .subscribe();
 
-    return () => { supabase.removeChannel(activityChannel); };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const sendCommand = async (commandType: string, payload?: any) => {
@@ -112,11 +116,21 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const disconnectDevice = () => {
-    supabase.auth.signOut().then(() => { window.location.href = '/login'; });
+    localStorage.removeItem('kosi_device_id');
+    supabase.auth.signOut().then(() => { window.location.href = '/'; });
   };
 
   return (
-    <DashboardContext.Provider value={{ state, language, setLanguage, t: translations[language], sendCommand, refreshData, disconnectDevice }}>
+    <DashboardContext.Provider value={{ 
+        state, 
+        activities: state.activities, 
+        language, 
+        setLanguage, 
+        t: translations[language], 
+        sendCommand, 
+        refreshData, 
+        disconnectDevice 
+    }}>
       {children}
     </DashboardContext.Provider>
   );
