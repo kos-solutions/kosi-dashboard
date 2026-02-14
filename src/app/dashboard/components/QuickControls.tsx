@@ -1,95 +1,82 @@
 'use client'
 
-import { Mic, Square, Sun, Moon } from 'lucide-react'
+import { Mic, Square, Sun, Moon, Volume2, Power } from 'lucide-react'
 import { useDashboard } from '@/lib/DashboardContext'
 import { useState } from 'react'
 
-// 👇 FIX: Adăugăm 't' în interfață ca să scăpăm de eroarea de build
-interface QuickControlsProps {
-  sendCommand?: (command: string, payload?: any) => Promise<void>;
-  t?: any; // Îl lăsăm 'any' momentan pentru a evita importuri complexe
-}
-
-export default function QuickControls({ sendCommand: propSendCommand, t: propT }: QuickControlsProps) {
-  
-  // Luăm datele din context, dar permitem suprascrierea prin props
-  const { sendCommand: contextSendCommand, t: contextT } = useDashboard();
-  
-  const sendCommand = contextSendCommand || propSendCommand;
-  // Folosim traducerile primite prin props (din page.tsx) SAU cele din context
-  // Fallback la un obiect gol ca să nu crape dacă e undefined
-  const t = propT || contextT || { controls: { title: "Controls", stop: "Stop", greet: "Greet", light: "Light", sleep: "Sleep" } };
-
+export default function QuickControls() {
+  // 1. Folosim funcția sendCommand din context
+  const { sendCommand, t } = useDashboard()
   const [loading, setLoading] = useState<string | null>(null)
 
-  const handleCommand = async (command: string) => {
-    if (!sendCommand) return;
-    
+  const handleCommand = async (command: string, payload: any = {}) => {
     setLoading(command)
     try {
-      await sendCommand(command, {})
-      setTimeout(() => setLoading(null), 500)
-    } catch (error) {
-      console.error(`Failed to send command ${command}:`, error)
+      // Trimitem comanda către Supabase -> Device
+      await sendCommand(command, payload)
+      
+      // Mic delay vizual pentru feedback
+      setTimeout(() => setLoading(null), 1000)
+    } catch (err) {
+      console.error(err)
       setLoading(null)
     }
   }
 
+  // Helper pentru starea butonului
+  const getBtnClass = (cmdName: string, colorClass: string) => `
+    flex flex-col items-center justify-center p-4 rounded-2xl 
+    border transition-all active:scale-95 group
+    ${loading === cmdName ? 'bg-gray-100 border-gray-200 opacity-70 cursor-wait' : `bg-white hover:bg-gray-50 border-gray-100 ${colorClass}`}
+  `
+
   return (
-    <div className="bg-white rounded-3xl p-5 md:p-6 shadow-sm border border-slate-100">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-           ⚡ {t.controls?.title || "Comenzi Rapide"}
-        </h3>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 md:gap-4">
-        {/* Buton STOP */}
+    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <h3 className="text-lg font-bold text-slate-800 mb-4">Control Rapid</h3>
+      
+      <div className="grid grid-cols-4 gap-3">
+        {/* STOP */}
         <button 
-          onClick={() => handleCommand('STOP_AUDIO')}
-          disabled={loading !== null}
-          className="flex flex-col items-center justify-center p-4 rounded-2xl bg-red-50 hover:bg-red-100 border border-red-100 transition-all active:scale-95 group"
+           onClick={() => handleCommand('STOP_AUDIO')}
+           className={getBtnClass('STOP_AUDIO', 'hover:border-red-200')}
         >
-          <div className="w-10 h-10 rounded-full bg-white text-red-500 flex items-center justify-center mb-2 shadow-sm group-hover:shadow-md transition-all">
-            <Square className="w-5 h-5 fill-current" />
-          </div>
-          <span className="text-xs font-bold text-red-700">{t.controls?.stop || "Stop"}</span>
+           <div className="w-10 h-10 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-2">
+             <Square className="w-5 h-5 fill-current" />
+           </div>
+           <span className="text-xs font-bold text-slate-600">{t.controls?.stop || "Stop"}</span>
         </button>
 
-        {/* Buton SALUT */}
+        {/* SALUT */}
         <button 
-          onClick={() => handleCommand('SPEAK_MESSAGE')}
-          disabled={loading !== null}
-          className="flex flex-col items-center justify-center p-4 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-all active:scale-95 group"
+           onClick={() => handleCommand('SPEAK_MESSAGE', { text: "Salut! Eu sunt Kosi." })}
+           className={getBtnClass('SPEAK_MESSAGE', 'hover:border-indigo-200')}
         >
-          <div className="w-10 h-10 rounded-full bg-white text-indigo-500 flex items-center justify-center mb-2 shadow-sm group-hover:shadow-md transition-all">
-            <Mic className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-bold text-indigo-700">{t.controls?.greet || "Salut"}</span>
+           <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center mb-2">
+             <Mic className="w-5 h-5" />
+           </div>
+           <span className="text-xs font-bold text-slate-600">{t.controls?.greet || "Salut"}</span>
         </button>
 
-        {/* Buton LIGHT */}
+        {/* LUMINĂ */}
         <button 
            onClick={() => handleCommand('LIGHT_ON')}
-           disabled={loading !== null}
-           className="flex flex-col items-center justify-center p-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-100 transition-all active:scale-95 group"
+           className={getBtnClass('LIGHT_ON', 'hover:border-amber-200')}
         >
-           <div className="w-10 h-10 rounded-full bg-white text-amber-500 flex items-center justify-center mb-2 shadow-sm group-hover:shadow-md transition-all">
+           <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mb-2">
              <Sun className="w-5 h-5" />
            </div>
-           <span className="text-xs font-bold text-amber-700">{t.controls?.light || "Lumină"}</span>
+           <span className="text-xs font-bold text-slate-600">{t.controls?.light || "Lumină"}</span>
         </button>
 
-        {/* Buton SLEEP */}
+        {/* SLEEP */}
         <button 
            onClick={() => handleCommand('SLEEP_MODE')}
-           disabled={loading !== null}
-           className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition-all active:scale-95 group"
+           className={getBtnClass('SLEEP_MODE', 'hover:border-slate-300')}
         >
-           <div className="w-10 h-10 rounded-full bg-white text-slate-500 flex items-center justify-center mb-2 shadow-sm group-hover:shadow-md transition-all">
+           <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mb-2">
              <Moon className="w-5 h-5" />
            </div>
-           <span className="text-xs font-bold text-slate-700">{t.controls?.sleep || "Somn"}</span>
+           <span className="text-xs font-bold text-slate-600">{t.controls?.sleep || "Somn"}</span>
         </button>
       </div>
     </div>

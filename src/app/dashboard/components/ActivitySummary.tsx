@@ -1,88 +1,33 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { useDashboard } from "@/lib/DashboardContext"; // <--- Import Context
+import { useDashboard } from '@/lib/DashboardContext'
+import { BookOpen, Gamepad2, Clock, Palette } from 'lucide-react'
 
 export default function ActivitySummary() {
-  const { t } = useDashboard(); // <--- Use translations
-  const [stats, setStats] = useState({
-    totalMinutes: 0,
-    totalSessions: 0,
-    totalAlerts: 0
-  });
-  const [loading, setLoading] = useState(true);
+  const { state, t } = useDashboard()
+  const { todayStats } = state
 
-  useEffect(() => {
-    fetchStats();
-    const channel = supabase
-      .channel('stats-updates')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, () => fetchStats())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  async function fetchStats() {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data } = await supabase
-        .from('activity_log')
-        .select('*')
-        .gte('timestamp', today.toISOString());
-
-      const totalMinutes = data?.reduce((sum, activity) => sum + (activity.duration_seconds || 0), 0) || 0;
-      const totalSessions = data?.filter(a => a.event_type === 'story_played').length || 0;
-      const totalAlerts = data?.filter(a => a.event_type === 'alert').length || 0;
-
-      setStats({
-        totalMinutes: Math.round(totalMinutes / 60),
-        totalSessions,
-        totalAlerts
-      });
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-xl p-6 shadow">
-        <h3 className="text-lg font-semibold mb-4">{t.activitySummary.title}</h3>
-        <div className="flex items-center justify-center py-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-        </div>
-      </div>
-    );
-  }
+  const stats = [
+    { icon: BookOpen, label: "Povești", value: todayStats.stories, color: "text-blue-500", bg: "bg-blue-100" },
+    { icon: Palette, label: "Desene", value: todayStats.drawings, color: "text-pink-500", bg: "bg-pink-100" },
+    { icon: Gamepad2, label: "Jocuri", value: todayStats.games, color: "text-orange-500", bg: "bg-orange-100" },
+    { icon: Clock, label: "Minute", value: todayStats.learningTime, color: "text-green-500", bg: "bg-green-100" },
+  ]
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow">
-      <h3 className="text-lg font-semibold mb-4">{t.activitySummary.title}</h3>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div className="text-center">
-          <div className="text-3xl font-bold text-indigo-600">{stats.totalMinutes}</div>
-          <div className="text-sm text-gray-600 mt-1">{t.activitySummary.minutes}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-3xl font-bold text-green-600">{stats.totalSessions}</div>
-          <div className="text-sm text-gray-600 mt-1">{t.activitySummary.sessions}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-3xl font-bold text-orange-600">{stats.totalAlerts}</div>
-          <div className="text-sm text-gray-600 mt-1">{t.activitySummary.alerts}</div>
-        </div>
-      </div>
-
-      <div className="mt-4 pt-4 border-t">
-        <p className="text-sm text-gray-600 text-center">
-          {t.activitySummary.footer}
-        </p>
+    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm h-full">
+      <h3 className="text-lg font-bold text-slate-800 mb-4">{t.activitySummary.title}</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {stats.map((stat, idx) => (
+          <div key={idx} className="flex flex-col items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <div className={`p-3 rounded-full ${stat.bg} ${stat.color} mb-2`}>
+              <stat.icon size={20} />
+            </div>
+            <span className="text-2xl font-bold text-slate-900">{stat.value}</span>
+            <span className="text-xs font-medium text-slate-500 uppercase">{stat.label}</span>
+          </div>
+        ))}
       </div>
     </div>
-  );
+  )
 }

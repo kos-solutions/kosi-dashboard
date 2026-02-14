@@ -4,7 +4,6 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { translations, Language } from "./translations";
 
-// --- TIPURI ---
 type DeviceStatus = "online" | "offline" | "active";
 
 interface ActivityItem {
@@ -25,13 +24,19 @@ interface DashboardState {
   pairingCode: string;
   activities: ActivityItem[];
   drawings: any[];
-  // 👇 AM ADĂUGAT ASTA PENTRU A REPARA EROAREA DIN STATUSCARD
-  lastActivity: any; 
+  lastActivity: any;
+  // Statistici calculate global
+  todayStats: {
+    stories: number;
+    drawings: number;
+    games: number;
+    learningTime: number;
+  };
 }
 
 interface DashboardContextType {
   state: DashboardState;
-  activities: ActivityItem[]; 
+  activities: ActivityItem[];
   language: Language;
   setLanguage: (lang: Language) => void;
   t: typeof translations['ro'];
@@ -49,20 +54,21 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, setDashboardState] = useState<DashboardState>({
     deviceStatus: "offline",
     batteryLevel: 0,
-    wifiStatus: "offline",
+    wifiStatus: "lipsă",
     lastSeen: "",
     childName: "Explorator",
     deviceId: null,
     pairingCode: "....",
     activities: [],
     drawings: [],
-    lastActivity: null // Inițializăm cu null
+    lastActivity: null,
+    todayStats: { stories: 0, drawings: 0, games: 0, learningTime: 0 }
   });
 
   const refreshData = async () => {
     try {
+      // 1. Identificăm dispozitivul (Hardware ID din localStorage sau fallback)
       const savedHardwareId = typeof window !== 'undefined' ? localStorage.getItem('kosi_device_id') : null;
-      
       let query = supabase.from('devices').select('*');
       
       if (savedHardwareId) {
@@ -74,31 +80,41 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { data: deviceData } = await query.maybeSingle();
 
       if (deviceData) {
+        // 2. Tragem datele folosind UUID-ul (deviceData.id) - CRITIC PENTRU DESENE
         const [activityLogs, drawingsData] = await Promise.all([
-          supabase.from('activity_log').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(20),
+          supabase.from('activity_log').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(50),
           supabase.from('drawings').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(12)
         ]);
 
-        // Pregătim ultima activitate pentru StatusCard
-        const latestRaw = activityLogs.data?.[0];
-        // Facem un mic "mapping" ca să aibă câmpurile pe care le așteaptă StatusCard (type, detail)
-        const mappedLastActivity = latestRaw ? {
-            ...latestRaw,
-            type: latestRaw.event_type, 
-            detail: typeof latestRaw.event_data === 'string' && latestRaw.event_data.includes('{') 
-                ? JSON.parse(latestRaw.event_data).detail 
-                : latestRaw.event_type
-        } : null;
+        const activities = activityLogs.data || [];
+        const drawings = drawingsData.data || [];
+
+        // 3. Calculăm statisticile
+        const stats = {
+            stories: activities.filter(a => a.event_type === 'story_played' || a.event_type === 'STORY').length,
+            drawings: activities.filter(a => a.event_type === 'DRAW').length + drawings.length,
+            games: activities.filter(a => a.event_type === 'GAME').length,
+            learningTime: Math.floor(activities.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0) / 60)
+        };
+
+        // 4. Verificăm dacă e online (activ în ultimele 5 minute)
+        const lastActive = new Date(deviceData.last_active_at).getTime();
+        const now = new Date().getTime();
+        const isOnline = (now - lastActive) < 5 * 60 * 1000;
 
         setDashboardState(prev => ({
           ...prev,
           deviceId: deviceData.id,
           pairingCode: deviceData.pairing_code,
           childName: deviceData.child_name || "Micuțul tău",
-          activities: activityLogs.data || [],
-          drawings: drawingsData.data || [],
-          deviceStatus: deviceData.is_paired ? "active" : "offline",
-          lastActivity: mappedLastActivity // Populăm câmpul
+          batteryLevel: deviceData.battery_level || 0, // Aici citim bateria reală
+          wifiStatus: deviceData.wifi_status || 'offline',
+          deviceStatus: isOnline ? 'online' : 'offline',
+          lastSeen: deviceData.last_active_at,
+          activities: activities,
+          drawings: drawings,
+          lastActivity: activities[0] || null,
+          todayStats: stats
         }));
       }
     } catch (e) {
@@ -108,13 +124,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshData();
-    
     const channel = supabase.channel('global-dashboard-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, refreshData)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'drawings' }, refreshData)
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 

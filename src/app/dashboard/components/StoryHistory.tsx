@@ -1,133 +1,61 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
-
-interface Story {
-  id: string;
-  request: string;
-  story_text: string;
-  timestamp: string;
-  duration_seconds: number;
-}
+import { useDashboard } from "@/lib/DashboardContext"; // Folosim contextul
+import { BookOpen, PlayCircle, StopCircle } from "lucide-react";
 
 export default function StoryHistory() {
-  const [stories, setStories] = useState<Story[]>([]);
-  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+  const { state } = useDashboard(); // Accesăm activitățile deja încărcate în context
+  const [stories, setStories] = useState<any[]>([]);
 
   useEffect(() => {
-    loadStories();
-  }, []);
-
-  async function loadStories() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get paired device
-      const { data: pairedDevice } = await supabase
-        .from('parent_devices')
-        .select('device_id')
-        .eq('parent_id', user.id)
-        .limit(1)
-        .single();
-
-      if (!pairedDevice) return;
-
-      // Get stories from activity_log
-      const { data } = await supabase
-        .from("activity_log")
-        .select("*")
-        .eq("device_id", pairedDevice.device_id)
-        .eq("event_type", "story_played")
-        .order("timestamp", { ascending: false })
-        .limit(20);
-
-      console.log('Story history data:', data);
-
-      if (data) {
-        setStories(
-          data.map((event) => ({
-            id: event.id,
-            request: event.event_data?.title || "Poveste",
-            story_text: event.event_data?.story_text || "Povestea nu este disponibilă.",
-            timestamp: event.timestamp,
-            duration_seconds: event.duration_seconds || 0,
-          }))
+    // Filtrăm doar poveștile din activitățile globale
+    if (state.activities) {
+        const storyLogs = state.activities.filter(a => 
+            a.event_type === 'story_played' || a.event_type === 'STORY'
         );
-      }
-    } catch (error) {
-      console.error('Error loading stories:', error);
+        setStories(storyLogs);
     }
-  }
+  }, [state.activities]);
 
-  function formatDate(dateString: string) {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return `Astăzi ${date.toLocaleTimeString("ro-RO", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return `Ieri ${date.toLocaleTimeString("ro-RO", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
-    } else {
-      return date.toLocaleDateString("ro-RO", {
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
+  if (stories.length === 0) {
+      return (
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 text-center py-10">
+              <BookOpen className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+              <p className="text-slate-400">Încă nu s-au ascultat povești.</p>
+          </div>
+      )
   }
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow">
-      <h3 className="text-lg font-semibold mb-4">Povești Ascultate</h3>
+    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+      <h3 className="text-lg font-bold text-slate-800 mb-4">Istoric Povești</h3>
+      <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+        {stories.map((story) => {
+            let details = "Poveste audio";
+            try {
+                if (typeof story.event_data === 'string' && story.event_data.includes('{')) {
+                    const parsed = JSON.parse(story.event_data);
+                    details = parsed.detail || parsed.message || "Poveste magică";
+                } else {
+                    details = story.event_data;
+                }
+            } catch (e) {}
 
-      <div className="space-y-2">
-        {stories.map((story) => (
-          <button
-            key={story.id}
-            onClick={() =>
-              setSelectedStory(selectedStory?.id === story.id ? null : story)
-            }
-            className="w-full text-left p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="font-medium text-sm">📖 {story.request}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {formatDate(story.timestamp)} •{" "}
-                  {Math.round(story.duration_seconds / 60)} min
-                </p>
-              </div>
-              <span className="text-gray-400">
-                {selectedStory?.id === story.id ? "▼" : "▶"}
-              </span>
-            </div>
-
-            {selectedStory?.id === story.id && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {story.story_text}
-                </p>
-              </div>
-            )}
-          </button>
-        ))}
-
-        {stories.length === 0 && (
-          <p className="text-sm text-gray-500 text-center py-8">
-            Nicio poveste ascultată încă
-          </p>
-        )}
+            return (
+                <div key={story.id} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-colors group cursor-pointer border border-transparent hover:border-slate-100">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
+                        <BookOpen size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-700 truncate">{details}</p>
+                        <p className="text-xs text-slate-400">
+                            {new Date(story.created_at).toLocaleDateString('ro-RO')} • {new Date(story.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        </p>
+                    </div>
+                </div>
+            )
+        })}
       </div>
     </div>
   );
