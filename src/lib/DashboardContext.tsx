@@ -25,7 +25,6 @@ interface DashboardState {
   activities: ActivityItem[];
   drawings: any[];
   lastActivity: any;
-  // Statistici calculate global
   todayStats: {
     stories: number;
     drawings: number;
@@ -67,7 +66,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const refreshData = async () => {
     try {
-      // 1. Identificăm dispozitivul (Hardware ID din localStorage sau fallback)
       const savedHardwareId = typeof window !== 'undefined' ? localStorage.getItem('kosi_device_id') : null;
       let query = supabase.from('devices').select('*');
       
@@ -80,24 +78,37 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const { data: deviceData } = await query.maybeSingle();
 
       if (deviceData) {
-        // 2. Tragem datele folosind UUID-ul (deviceData.id) - CRITIC PENTRU DESENE
-        const [activityLogs, drawingsData] = await Promise.all([
-          supabase.from('activity_log').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(50),
-          supabase.from('drawings').select('*').eq('device_id', deviceData.id).order('created_at', { ascending: false }).limit(12)
-        ]);
+        // Luăm activitățile din activity_log
+        const { data: activityLogs } = await supabase
+          .from('activity_log')
+          .select('*')
+          .eq('device_id', deviceData.id)
+          .order('created_at', { ascending: false })
+          .limit(100);
 
-        const activities = activityLogs.data || [];
-        const drawings = drawingsData.data || [];
+        const activities = activityLogs || [];
 
-        // 3. Calculăm statisticile
+        // EXTRAGEM DESENELE DIRECT DIN LOGURI (exact cum le salvează Android-ul)
+        const drawings = activities
+          .filter(a => a.event_type === 'DRAW')
+          .map(a => ({
+            id: a.id,
+            created_at: a.created_at,
+            // Curățăm posibilele ghilimele din event_data (Kotlin mai adaugă uneori extra "")
+            image_url: typeof a.event_data === 'string' ? a.event_data.replace(/(^"|"$)/g, '') : a.event_data
+          }));
+
+        // CALCULĂM STATISTICILE PENTRU AZI
+        const todayStr = new Date().toDateString();
+        const todaysActivities = activities.filter(a => new Date(a.created_at).toDateString() === todayStr);
+
         const stats = {
-            stories: activities.filter(a => a.event_type === 'story_played' || a.event_type === 'STORY').length,
-            drawings: activities.filter(a => a.event_type === 'DRAW').length + drawings.length,
-            games: activities.filter(a => a.event_type === 'GAME').length,
-            learningTime: Math.floor(activities.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0) / 60)
+            stories: todaysActivities.filter(a => a.event_type === 'story_played' || a.event_type === 'STORY').length,
+            drawings: todaysActivities.filter(a => a.event_type === 'DRAW').length,
+            games: todaysActivities.filter(a => a.event_type === 'GAME').length,
+            learningTime: Math.floor(todaysActivities.reduce((acc, curr) => acc + (curr.duration_seconds || 0), 0) / 60)
         };
 
-        // 4. Verificăm dacă e online (activ în ultimele 5 minute)
         const lastActive = new Date(deviceData.last_active_at).getTime();
         const now = new Date().getTime();
         const isOnline = (now - lastActive) < 5 * 60 * 1000;
@@ -107,12 +118,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           deviceId: deviceData.id,
           pairingCode: deviceData.pairing_code,
           childName: deviceData.child_name || "Micuțul tău",
-          batteryLevel: deviceData.battery_level || 0, // Aici citim bateria reală
+          batteryLevel: deviceData.battery_level || 0,
           wifiStatus: deviceData.wifi_status || 'offline',
           deviceStatus: isOnline ? 'online' : 'offline',
           lastSeen: deviceData.last_active_at,
-          activities: activities,
-          drawings: drawings,
+          activities: activities.slice(0, 30), // Păstrăm doar ultimele 30 pentru UI
+          drawings: drawings, // Aici se duc desenele noastre extrase
           lastActivity: activities[0] || null,
           todayStats: stats
         }));
@@ -127,18 +138,26 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const channel = supabase.channel('global-dashboard-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'devices' }, refreshData)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, refreshData)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'drawings' }, refreshData)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // 🚀 TRIMITEREA COMENZILOR SPRE ANDROID
   const sendCommand = async (commandType: string, payload?: any) => {
     if (!state.deviceId) return;
-    await supabase.from('device_commands').insert([{
+    
+    // Extragem textul curat dacă componenta trimite { text: "mesaj" }
+    let finalPayload = payload;
+    if (typeof payload === 'object' && payload?.text) {
+        finalPayload = payload.text;
+    }
+
+    // Inserăm exact în tabelul pe care îl citește Android-ul
+    await supabase.from('parent_commands').insert([{
       device_id: state.deviceId,
       command_type: commandType,
-      payload: payload,
-      status: 'pending'
+      payload: finalPayload ? String(finalPayload) : null,
+      is_executed: false // Android-ul ascultă de "false"
     }]);
   };
 

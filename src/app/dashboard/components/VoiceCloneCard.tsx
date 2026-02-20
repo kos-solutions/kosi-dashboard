@@ -1,6 +1,7 @@
 'use client'
+
 import { useState, useEffect } from 'react'
-import { Mic, Wand2, CheckCircle, Loader2 } from 'lucide-react'
+import { Mic, CheckCircle, Wand2, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useDashboard } from '@/lib/DashboardContext'
@@ -12,25 +13,30 @@ export default function VoiceCloneCard() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    async function checkVoice() {
-      if (!state.deviceId) return;
+    async function checkVoiceStatus() {
+      if (!state.deviceId) {
+        setIsLoading(false)
+        return
+      }
       try {
-        // Verificăm dacă există o voce activă pentru acest device
+        setIsLoading(true)
+        // Căutăm exact în tabelul creat de aplicație
         const { data } = await supabase
-            .from('device_voices') // Asigură-te că tabela există
-            .select('id')
-            .eq('device_id', state.deviceId)
-            .maybeSingle();
-        
-        setHasVoice(!!data);
-      } catch (e) {
-        console.error(e);
+          .from('device_voices')
+          .select('is_active')
+          .eq('device_id', state.deviceId)
+          .eq('is_active', true)
+          .maybeSingle()
+          
+        setHasVoice(!!data)
+      } catch (err) {
+        console.error(err)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
     }
-    checkVoice();
-  }, [state.deviceId]);
+    checkVoiceStatus()
+  }, [state.deviceId])
 
   return (
     <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
