@@ -40,6 +40,8 @@ export interface DeviceRow {
 export const parentApi = {
   pair: (code: string) => invoke('parent', { action: 'pair', code }),
   devices: () => invoke('parent', { action: 'devices' }).then((d) => (d?.devices ?? []) as DeviceRow[]),
+  overview: (preferDeviceId?: string) =>
+    invoke('parent', { action: 'overview', preferDeviceId }),
   activity: (deviceId: string, opts: { limit?: number; sinceDays?: number } = {}) =>
     invoke('parent', { action: 'activity', deviceId, ...opts }).then((d) => d?.activities ?? []),
   voices: (deviceId: string) =>

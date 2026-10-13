@@ -1,7 +1,7 @@
 'use client'
 
 import { supabase } from "./supabaseClient";
-import { parentApi, DeviceRow } from "./parentApi";
+import { parentApi } from "./parentApi";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { translations, Language } from "./translations";
 
@@ -35,6 +35,7 @@ interface DashboardContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: typeof translations['ro'];
+  syncing: boolean;
   sendCommand: (commandType: string, payload?: any) => Promise<void>;
   refreshData: () => Promise<void>;
   disconnectDevice: () => void;
@@ -59,25 +60,20 @@ const EMPTY: DashboardState = {
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>('ro');
   const [state, setDashboardState] = useState<DashboardState>(EMPTY);
+  const [syncing, setSyncing] = useState(false);
 
   const refreshData = async () => {
     try {
-      // Fara sesiune de parinte nu avem ce incarca (anon e respins de backend).
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setDashboardState(EMPTY); return; }
 
-      const devices: DeviceRow[] = await parentApi.devices();
-      if (!devices.length) {
-        // parinte logat, dar niciun device legat inca
-        setDashboardState({ ...EMPTY, deviceId: null });
-        return;
-      }
-
-      // Device preferat din localStorage, altfel primul legat.
+      setSyncing(true);
       const preferred = typeof window !== 'undefined' ? localStorage.getItem('kosi_device_id') : null;
-      const device = devices.find(d => d.id === preferred) ?? devices[0];
+      const res: any = await parentApi.overview(preferred ?? undefined);
+      const device = res?.device;
+      if (!device) { setDashboardState({ ...EMPTY }); return; }
 
-      const activities: ActivityItem[] = await parentApi.activity(device.id, { limit: 100 });
+      const activities: ActivityItem[] = res?.activities ?? [];
 
       const drawings = activities
         .filter(a => a.event_type === 'DRAW')
@@ -114,12 +110,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       });
     } catch (e) {
       console.error("Sync Error:", e);
+    } finally {
+      setSyncing(false);
     }
   };
 
   useEffect(() => {
     refreshData();
-    // Realtime nu merge prin anon pe proiectul nou -> polling simplu.
     const id = setInterval(refreshData, 20000);
     const { data: sub } = supabase.auth.onAuthStateChange(() => refreshData());
     return () => { clearInterval(id); sub.subscription.unsubscribe(); };
@@ -151,11 +148,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       language,
       setLanguage,
       t: translations[language],
+      syncing,
       sendCommand,
       refreshData,
       disconnectDevice,
     }}>
       {children}
+      {syncing && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-slate-900/90 text-white text-xs font-medium px-3 py-2 rounded-full shadow-lg">
+          <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+          Se sincronizează…
+        </div>
+      )}
     </DashboardContext.Provider>
   );
 }
