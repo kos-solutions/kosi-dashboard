@@ -3,32 +3,27 @@
 import { useState } from 'react'
 import { Send, MessageSquare, Loader2 } from 'lucide-react'
 import { useDashboard } from '@/lib/DashboardContext'
+import { sendWithDelivery, deliveryLabel, deliveryTone, DeliveryState } from '@/lib/commands'
 
 export default function SendMessageCard() {
-  const { sendCommand, t } = useDashboard()
+  const { state } = useDashboard()
   const [message, setMessage] = useState('')
-  const [isSending, setIsSending] = useState(false)
+  const [st, setSt] = useState<DeliveryState | undefined>(undefined)
 
-  const handleSend = async (e: React.FormEvent) => {
+  const busy = st === 'sending' || st === 'sent'
+
+  const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!message.trim()) return
-
-    setIsSending(true)
-    try {
-      // Trimitem comanda SPEAK_MESSAGE către Android
-      await sendCommand('SPEAK_MESSAGE', { text: message })
-      setMessage('') // Golim câmpul după trimitere
-    } catch (error) {
-      console.error("Eroare trimitere mesaj:", error)
-    } finally {
-      // Mic delay ca să se vadă animația
-      setTimeout(() => setIsSending(false), 500)
-    }
+    const text = message.trim()
+    if (!text || busy) return
+    sendWithDelivery(state.deviceId, 'SPEAK_MESSAGE', text, (s) => {
+      setSt(s)
+      if (s === 'sent') setMessage('') // golim imediat ce a plecat
+    })
   }
 
   return (
     <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden h-full">
-      {/* Cerc decorativ */}
       <div className="absolute -top-10 -right-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
 
       <div className="relative z-10 flex flex-col h-full">
@@ -54,13 +49,20 @@ export default function SendMessageCard() {
             />
             <button
               type="submit"
-              disabled={isSending || !message.trim()}
+              disabled={busy || !message.trim() || !state.deviceId}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white text-indigo-600 rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </div>
         </form>
+
+        {st && (
+          <p className={`mt-2 text-xs font-semibold ${st === 'delivered' ? 'text-green-200' : (st === 'timeout' || st === 'error') ? 'text-red-200' : 'text-blue-100'}`}>
+            {deliveryLabel(st)}
+          </p>
+        )}
+        {!state.deviceId && <p className="mt-2 text-xs text-blue-100">Conectează întâi un dispozitiv.</p>}
       </div>
     </div>
   )

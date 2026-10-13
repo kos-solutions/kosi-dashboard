@@ -48,6 +48,8 @@ export const parentApi = {
     invoke('parent', { action: 'setChildName', deviceId, name }),
   sendCommand: (deviceId: string, commandType: string, payload?: unknown) =>
     invoke('parent', { action: 'sendCommand', deviceId, commandType, payload }),
+  commandStatus: (deviceId: string, ids: number[]) =>
+    invoke('parent', { action: 'commandStatus', deviceId, ids }).then((d) => d?.statuses ?? []),
   deleteData: (deviceId: string) => invoke('parent', { action: 'deleteData', deviceId }),
   unpair: (deviceId: string) => invoke('parent', { action: 'unpair', deviceId }),
   cloneVoice: (deviceId: string, audioBase64: string, sampleDuration?: number) =>
