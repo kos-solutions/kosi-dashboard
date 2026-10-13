@@ -7,6 +7,7 @@ import ActivitySummary from './components/ActivitySummary'
 import VoiceCloneCard from './components/VoiceCloneCard'
 import SendMessageCard from './components/SendMessageCard'
 import QuickControls from './components/QuickControls'
+import WeeklyReport from './components/WeeklyReport'
 import { Sparkles, Palette, Link as LinkIcon, Smartphone, LogIn } from 'lucide-react'
 import { activityMeta, isMeaningful, relativeTime } from '@/lib/activity'
 
@@ -69,6 +70,9 @@ export default function DashboardPage() {
 
       {/* Statistici scurte */}
       <ActivitySummary />
+
+      {/* Raport saptamanal */}
+      <WeeklyReport />
 
       {/* Galerie + activitate */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
