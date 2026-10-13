@@ -2,6 +2,7 @@
 
 import { useDashboard } from '@/lib/DashboardContext'
 import { Wifi, Battery, Zap, Activity, Clock } from 'lucide-react'
+import { activityMeta } from '@/lib/activity'
 
 export default function StatusCard() {
   const { state } = useDashboard()
@@ -67,7 +68,7 @@ export default function StatusCard() {
           <div className="min-w-0">
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ultima acțiune</p>
              <p className="text-sm font-bold text-slate-700 truncate leading-tight">
-               {lastActivity?.detail || lastActivity?.event_type || "Nicio activitate"}
+               {lastActivity ? activityMeta(lastActivity.event_type).label : "Nicio activitate"}
              </p>
              <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
                 <Clock className="w-3 h-3" />
