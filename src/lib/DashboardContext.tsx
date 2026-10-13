@@ -36,6 +36,8 @@ interface DashboardContextType {
   setLanguage: (lang: Language) => void;
   t: typeof translations['ro'];
   syncing: boolean;
+  loaded: boolean;
+  authed: boolean;
   sendCommand: (commandType: string, payload?: any) => Promise<void>;
   refreshData: () => Promise<void>;
   disconnectDevice: () => void;
@@ -61,10 +63,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>('ro');
   const [state, setDashboardState] = useState<DashboardState>(EMPTY);
   const [syncing, setSyncing] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [authed, setAuthed] = useState(false);
 
   const refreshData = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      setAuthed(!!session);
       if (!session) { setDashboardState(EMPTY); return; }
 
       setSyncing(true);
@@ -112,6 +117,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       console.error("Sync Error:", e);
     } finally {
       setSyncing(false);
+      setLoaded(true);
     }
   };
 
@@ -149,6 +155,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setLanguage,
       t: translations[language],
       syncing,
+      loaded,
+      authed,
       sendCommand,
       refreshData,
       disconnectDevice,

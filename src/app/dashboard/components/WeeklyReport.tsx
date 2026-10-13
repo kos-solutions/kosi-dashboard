@@ -47,11 +47,19 @@ export default function WeeklyReport() {
     }
   }
 
-  if (loading) return <div className="h-64 flex items-center justify-center text-slate-400">Se încarcă raportul...</div>;
+  const hasData = weeklyData.some((d) => d.minute > 0);
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
       <h3 className="text-lg font-bold text-slate-800 mb-6">Activitate Săptămânală</h3>
+      {loading ? (
+        <div className="h-64 flex items-center justify-center text-slate-400">Se încarcă raportul…</div>
+      ) : !hasData ? (
+        <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-1">
+          <span className="text-3xl opacity-20">📊</span>
+          <p className="text-sm">Nicio activitate în ultimele 7 zile</p>
+        </div>
+      ) : (
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={weeklyData}>
@@ -76,6 +84,7 @@ export default function WeeklyReport() {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }

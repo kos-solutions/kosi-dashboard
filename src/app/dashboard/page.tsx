@@ -7,12 +7,16 @@ import ActivitySummary from './components/ActivitySummary'
 import VoiceCloneCard from './components/VoiceCloneCard'
 import SendMessageCard from './components/SendMessageCard'
 import QuickControls from './components/QuickControls'
-import { Sparkles, Palette, Link as LinkIcon, Smartphone } from 'lucide-react'
+import { Sparkles, Palette, Link as LinkIcon, Smartphone, LogIn } from 'lucide-react'
 import { activityMeta, isMeaningful, relativeTime } from '@/lib/activity'
 
 export default function DashboardPage() {
-  const { state, t } = useDashboard()
+  const { state, t, loaded, authed } = useDashboard()
   const { activities, drawings, childName, pairingCode } = state
+
+  // Prima incarcare: schelet, nu flash de "neconectat".
+  if (!loaded) return <DashboardSkeleton />
+  if (!authed) return <LoginPrompt />
 
   // --- STARE: niciun dispozitiv conectat ---
   if (!state.deviceId) {
@@ -121,6 +125,43 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto animate-pulse">
+      <div className="h-9 w-64 bg-slate-200 rounded-lg" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[0, 1, 2].map((i) => <div key={i} className="h-56 bg-slate-100 rounded-3xl border border-slate-200" />)}
+      </div>
+      <div className="h-32 bg-slate-100 rounded-3xl border border-slate-200" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 h-64 bg-slate-100 rounded-3xl border border-slate-200" />
+        <div className="h-64 bg-slate-100 rounded-3xl border border-slate-200" />
+      </div>
+    </div>
+  )
+}
+
+function LoginPrompt() {
+  return (
+    <div className="max-w-md mx-auto mt-16 text-center">
+      <div className="bg-white p-10 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
+          <LogIn className="w-10 h-10" />
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">Autentificare necesară</h1>
+        <p className="text-slate-500 mb-8">Intră cu linkul magic trimis pe email ca să vezi panoul părintelui.</p>
+        <Link
+          href="/login"
+          className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+        >
+          <LogIn className="w-5 h-5" />
+          Mergi la autentificare
+        </Link>
       </div>
     </div>
   )

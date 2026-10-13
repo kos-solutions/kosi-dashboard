@@ -1,25 +1,7 @@
-"use client";
+'use client'
 
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
-
-<button
-  onClick={async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }}
-  className="text-sm text-gray-500"
->
-  Deconectare
-</button>
+// Componenta Header nu mai e folosita (navigarea e in Sidebar). Pastram un stub
+// valid ca sa nu ramana cod stricat in arbore.
 export default function Header() {
-  const router = useRouter();
-
-  return (
-    <header>
-      <button onClick={() => router.push("/dashboard")}>
-        KOSI
-      </button>
-    </header>
-  );
+  return null
 }

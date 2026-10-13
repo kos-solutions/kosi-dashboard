@@ -22,7 +22,7 @@ export default function SettingsPage() {
         toast.success(t.settings.save + " OK!");
         refreshData(); // Actualizăm contextul
     } catch (e) {
-        toast.error("Eroare la salvare");
+        toast.error((e as any)?.message || "Eroare la salvare");
     } finally {
         setLoadingSave(false);
     }
@@ -43,8 +43,7 @@ export default function SettingsPage() {
         toast.success(t.settings.deleted || "Deleted!");
         refreshData();
     } catch (e) {
-        console.error(e);
-        toast.error("Eroare la ștergere");
+        toast.error((e as any)?.message || "Eroare la ștergere");
     } finally {
         setLoadingDelete(false);
     }
