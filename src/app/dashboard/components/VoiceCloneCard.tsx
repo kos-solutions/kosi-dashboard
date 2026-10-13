@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Mic, CheckCircle, Wand2, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+import { parentApi } from '@/lib/parentApi'
 import { useDashboard } from '@/lib/DashboardContext'
 
 export default function VoiceCloneCard() {
@@ -21,14 +21,8 @@ export default function VoiceCloneCard() {
       try {
         setIsLoading(true)
         // Căutăm exact în tabelul creat de aplicație
-        const { data } = await supabase
-          .from('device_voices')
-          .select('is_active')
-          .eq('device_id', state.deviceId)
-          .eq('is_active', true)
-          .maybeSingle()
-          
-        setHasVoice(!!data)
+        const voices = await parentApi.voices(state.deviceId)
+        setHasVoice(voices.some((v: any) => v.is_active))
       } catch (err) {
         console.error(err)
       } finally {

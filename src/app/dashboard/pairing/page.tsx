@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useDashboard } from '@/lib/DashboardContext'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { parentApi } from '@/lib/parentApi'
 import { CheckCircle, Smartphone, Unlink, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -10,7 +10,6 @@ export default function PairingPage() {
   const { t, state, refreshData, disconnectDevice } = useDashboard()
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
-  const supabase = createClientComponentClient()
 
   // Funcția care leagă efectiv dispozitivul în baza de date
   const handlePair = async () => {
@@ -34,14 +33,10 @@ export default function PairingPage() {
 
       // SIMULARE PENTRU TEST (Cum aveai înainte):
       // Aici poți pune un ID real din baza ta de date pentru test, sau îl lași să treacă
-      const fakeDeviceId = "00a172d8d6a6abec"; // ID-ul tău de test
-      
-      // Salvăm în LocalStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('kosi_device_id', fakeDeviceId);
+      const res: any = await parentApi.pair(code);
+      if (typeof window !== 'undefined' && res?.device_id) {
+        localStorage.setItem('kosi_device_id', res.device_id);
       }
-      
-      // Facem refresh la context ca să vadă noul ID
       await refreshData();
       
       toast.success(t.pairing.success);

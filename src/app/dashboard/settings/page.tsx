@@ -2,13 +2,12 @@
 
 import { useState } from 'react'
 import { useDashboard } from '@/lib/DashboardContext'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { parentApi } from '@/lib/parentApi'
 import { Trash2, AlertTriangle, Save, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function SettingsPage() {
   const { t, state, refreshData } = useDashboard()
-  const supabase = createClientComponentClient()
   
   const [loadingSave, setLoadingSave] = useState(false)
   const [loadingDelete, setLoadingDelete] = useState(false)
@@ -19,12 +18,7 @@ export default function SettingsPage() {
     if (!state.deviceId) return;
     setLoadingSave(true)
     try {
-        const { error } = await supabase
-            .from('devices')
-            .update({ child_name: childName })
-            .eq('id', state.deviceId)
-        
-        if (error) throw error;
+        await parentApi.setChildName(state.deviceId, childName);
         toast.success(t.settings.save + " OK!");
         refreshData(); // Actualizăm contextul
     } catch (e) {
@@ -44,15 +38,7 @@ export default function SettingsPage() {
     setLoadingDelete(true)
     try {
         // Ștergem tot din activity_log pentru acest device
-        const { error } = await supabase
-            .from('activity_log')
-            .delete()
-            .eq('device_id', state.deviceId)
-
-        // Opțional: Dacă ai și alte tabele (ex: drawings), șterge și de acolo:
-        // await supabase.from('drawings').delete().eq('device_id', state.deviceId)
-
-        if (error) throw error;
+        await parentApi.deleteData(state.deviceId);
 
         toast.success(t.settings.deleted || "Deleted!");
         refreshData();

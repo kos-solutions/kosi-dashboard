@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { parentApi } from "@/lib/parentApi";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useDashboard } from "@/lib/DashboardContext"; // Folosim contextul
 
@@ -20,14 +20,7 @@ export default function WeeklyReport() {
     try {
       setLoading(true);
       // Calculăm data de acum 7 zile
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      const { data: activities } = await supabase
-        .from('activity_log')
-        .select('*')
-        .eq('device_id', state.deviceId) // Folosim UUID-ul din context
-        .gte('created_at', sevenDaysAgo.toISOString());
+      const activities = await parentApi.activity(state.deviceId!, { sinceDays: 7 });
 
       if (!activities) {
           setWeeklyData([]);
