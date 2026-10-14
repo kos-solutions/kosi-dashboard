@@ -27,16 +27,16 @@ export default function DashboardPage() {
           <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <Smartphone className="w-10 h-10" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Niciun dispozitiv conectat</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">{t.ui.noDeviceTitle}</h1>
           <p className="text-slate-500 mb-8">
-            Conectează telefonul sau tableta copilului ca să vezi activitatea, poveștile și desenele aici.
+            {t.ui.noDeviceDesc}
           </p>
           <Link
             href="/dashboard/pairing"
             className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
           >
             <LinkIcon className="w-5 h-5" />
-            Conectează un dispozitiv
+            {t.ui.connectDevice}
           </Link>
         </div>
       </div>
@@ -54,7 +54,7 @@ export default function DashboardPage() {
           <p className="text-slate-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>{t.header.subtitle.replace('{child}', childName)}</span>
             <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-              Cod dispozitiv:
+              {t.ui.deviceCode}
               <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{pairingCode}</span>
             </span>
           </p>
@@ -123,7 +123,7 @@ export default function DashboardPage() {
               }) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400">
                   <Sparkles size={28} className="mb-2 opacity-20" />
-                  <p className="text-sm">Încă nicio activitate azi</p>
+                  <p className="text-sm">{t.ui.noneToday}</p>
                 </div>
               )}
             </div>
@@ -151,20 +151,21 @@ function DashboardSkeleton() {
 }
 
 function LoginPrompt() {
+  const { t } = useDashboard()
   return (
     <div className="max-w-md mx-auto mt-16 text-center">
       <div className="bg-white p-10 rounded-3xl border border-slate-100 shadow-sm">
         <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
           <LogIn className="w-10 h-10" />
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">Autentificare necesară</h1>
-        <p className="text-slate-500 mb-8">Intră cu linkul magic trimis pe email ca să vezi panoul părintelui.</p>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">{t.ui.authTitle}</h1>
+        <p className="text-slate-500 mb-8">{t.ui.authDesc}</p>
         <Link
           href="/login"
           className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
         >
           <LogIn className="w-5 h-5" />
-          Mergi la autentificare
+          {t.ui.goToLogin}
         </Link>
       </div>
     </div>

@@ -59,7 +59,7 @@ export default function VoiceCloneCard() {
                 hasVoice ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-white text-indigo-600 hover:bg-indigo-50'
             }`}>
             {hasVoice ? <CheckCircle size={16} /> : <Wand2 size={16} />}
-            {hasVoice ? "Voce Activă" : t.voiceCloneCard.btnStart}
+            {hasVoice ? t.ui.voiceActiveBtn : t.voiceCloneCard.btnStart}
             </button>
         )}
       </div>

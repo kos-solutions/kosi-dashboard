@@ -19,10 +19,10 @@ export default function SettingsPage() {
     setLoadingSave(true)
     try {
         await parentApi.setChildName(state.deviceId, childName);
-        toast.success(t.settings.save + " OK!");
+        toast.success(t.ui.saveOk);
         refreshData(); // Actualizăm contextul
     } catch (e) {
-        toast.error((e as any)?.message || "Eroare la salvare");
+        toast.error((e as any)?.message || t.ui.saveError);
     } finally {
         setLoadingSave(false);
     }
@@ -43,7 +43,7 @@ export default function SettingsPage() {
         toast.success(t.settings.deleted || "Deleted!");
         refreshData();
     } catch (e) {
-        toast.error((e as any)?.message || "Eroare la ștergere");
+        toast.error((e as any)?.message || t.ui.deleteError);
     } finally {
         setLoadingDelete(false);
     }
@@ -80,7 +80,7 @@ export default function SettingsPage() {
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
          <h3 className="font-bold text-lg mb-4 text-slate-800">{t.settings.device}</h3>
          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono text-slate-600 text-sm break-all">
-            {state.deviceId || 'Not connected'}
+            {state.deviceId || t.ui.notConnected}
          </div>
       </div>
 

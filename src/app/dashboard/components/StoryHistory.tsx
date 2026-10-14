@@ -5,7 +5,7 @@ import { useDashboard } from "@/lib/DashboardContext"; // Folosim contextul
 import { BookOpen, PlayCircle, StopCircle } from "lucide-react";
 
 export default function StoryHistory() {
-  const { state } = useDashboard(); // Accesăm activitățile deja încărcate în context
+  const { state, t } = useDashboard(); // Accesăm activitățile deja încărcate în context
   const [stories, setStories] = useState<any[]>([]);
 
   useEffect(() => {
@@ -22,21 +22,21 @@ export default function StoryHistory() {
       return (
           <div className="bg-white p-6 rounded-3xl border border-slate-100 text-center py-10">
               <BookOpen className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-slate-400">Încă nu s-au ascultat povești.</p>
+              <p className="text-slate-400">{t.ui.shEmpty}</p>
           </div>
       )
   }
 
   return (
     <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-      <h3 className="text-lg font-bold text-slate-800 mb-4">Istoric Povești</h3>
+      <h3 className="text-lg font-bold text-slate-800 mb-4">{t.ui.shTitle}</h3>
       <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
         {stories.map((story) => {
-            let details = "Poveste audio";
+            let details = t.ui.shFallback;
             try {
                 if (typeof story.event_data === 'string' && story.event_data.includes('{')) {
                     const parsed = JSON.parse(story.event_data);
-                    details = parsed.detail || parsed.message || "Poveste magică";
+                    details = parsed.detail || parsed.message || t.ui.shMagic;
                 } else {
                     details = story.event_data;
                 }

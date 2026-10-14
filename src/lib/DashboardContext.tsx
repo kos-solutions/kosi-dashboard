@@ -2,8 +2,24 @@
 
 import { supabase } from "./supabaseClient";
 import { parentApi } from "./parentApi";
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from "react";
 import { translations, Language } from "./translations";
+
+// Deep-merge limba activă peste EN: orice cheie lipsă cade automat pe engleză.
+function deepMerge(base: any, over: any): any {
+  if (!over) return base;
+  const out: any = Array.isArray(base) ? [...base] : { ...base };
+  for (const k of Object.keys(over)) {
+    const bv = (base ?? {})[k];
+    const ov = over[k];
+    if (ov && typeof ov === "object" && !Array.isArray(ov) && bv && typeof bv === "object" && !Array.isArray(bv)) {
+      out[k] = deepMerge(bv, ov);
+    } else {
+      out[k] = ov;
+    }
+  }
+  return out;
+}
 
 type DeviceStatus = "online" | "offline" | "active";
 
@@ -147,13 +163,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     else after();
   };
 
+  const mergedT = useMemo(
+    () => deepMerge(translations.en, translations[language]) as typeof translations["ro"],
+    [language],
+  );
+
   return (
     <DashboardContext.Provider value={{
       state,
       activities: state.activities,
       language,
       setLanguage,
-      t: translations[language],
+      t: mergedT,
       syncing,
       loaded,
       authed,

@@ -8,10 +8,10 @@ export default function ActivitySummary() {
   const { todayStats } = state
 
   const stats = [
-    { icon: BookOpen, label: "Povești", value: todayStats.stories, color: "text-blue-500", bg: "bg-blue-100" },
-    { icon: Palette, label: "Desene", value: todayStats.drawings, color: "text-pink-500", bg: "bg-pink-100" },
-    { icon: Gamepad2, label: "Jocuri", value: todayStats.games, color: "text-orange-500", bg: "bg-orange-100" },
-    { icon: Clock, label: "Minute", value: todayStats.learningTime, color: "text-green-500", bg: "bg-green-100" },
+    { icon: BookOpen, label: t.ui.stStories, value: todayStats.stories, color: "text-blue-500", bg: "bg-blue-100" },
+    { icon: Palette, label: t.ui.stDrawings, value: todayStats.drawings, color: "text-pink-500", bg: "bg-pink-100" },
+    { icon: Gamepad2, label: t.ui.stGames, value: todayStats.games, color: "text-orange-500", bg: "bg-orange-100" },
+    { icon: Clock, label: t.ui.stMinutes, value: todayStats.learningTime, color: "text-green-500", bg: "bg-green-100" },
   ]
 
   return (

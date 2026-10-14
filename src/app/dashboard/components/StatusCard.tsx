@@ -5,7 +5,7 @@ import { Wifi, Battery, Zap, Activity, Clock } from 'lucide-react'
 import { activityMeta } from '@/lib/activity'
 
 export default function StatusCard() {
-  const { state } = useDashboard()
+  const { state, t } = useDashboard()
   const { deviceStatus, batteryLevel, wifiStatus, lastActivity } = state
 
   const isOnline = deviceStatus === 'active' || deviceStatus === 'online'
@@ -23,9 +23,9 @@ export default function StatusCard() {
             <Zap className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status Dispozitiv</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.ui.scTitle}</p>
             <h3 className={`text-lg font-extrabold ${statusColors.text}`}>
-              {isOnline ? 'CONECTAT' : 'DECONECTAT'}
+              {isOnline ? t.ui.connected : t.ui.disconnected}
             </h3>
           </div>
         </div>
@@ -42,7 +42,7 @@ export default function StatusCard() {
         <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
            <div className="flex items-center gap-2 mb-1 text-slate-400">
               <Battery className="w-4 h-4" />
-              <span className="text-[10px] font-bold uppercase">Baterie</span>
+              <span className="text-[10px] font-bold uppercase">{t.ui.battery}</span>
            </div>
            <p className="text-xl font-bold text-slate-800">
              {batteryLevel > 0 ? `${batteryLevel}%` : '0%'}
@@ -52,10 +52,10 @@ export default function StatusCard() {
         <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
            <div className="flex items-center gap-2 mb-1 text-slate-400">
               <Wifi className="w-4 h-4" />
-              <span className="text-[10px] font-bold uppercase">Semnal</span>
+              <span className="text-[10px] font-bold uppercase">{t.ui.signal}</span>
            </div>
            <p className="text-xl font-bold text-slate-800 uppercase truncate">
-             {wifiStatus || 'Lipsă'}
+             {wifiStatus || t.ui.noSignal}
            </p>
         </div>
       </div>
@@ -66,9 +66,9 @@ export default function StatusCard() {
             <Activity className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ultima acțiune</p>
+             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{t.ui.lastAction}</p>
              <p className="text-sm font-bold text-slate-700 truncate leading-tight">
-               {lastActivity ? activityMeta(lastActivity.event_type).label : "Nicio activitate"}
+               {lastActivity ? activityMeta(lastActivity.event_type).label : t.ui.noActivity}
              </p>
              <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
                 <Clock className="w-3 h-3" />

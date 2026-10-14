@@ -6,7 +6,7 @@ import { useDashboard } from '@/lib/DashboardContext'
 import { sendWithDelivery, deliveryLabel, deliveryTone, DeliveryState } from '@/lib/commands'
 
 export default function SendMessageCard() {
-  const { state } = useDashboard()
+  const { state, t } = useDashboard()
   const [message, setMessage] = useState('')
   const [st, setSt] = useState<DeliveryState | undefined>(undefined)
 
@@ -31,11 +31,11 @@ export default function SendMessageCard() {
           <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
             <MessageSquare className="w-6 h-6 text-white" />
           </div>
-          <h3 className="font-bold text-lg">Trimite Mesaj Vocal</h3>
+          <h3 className="font-bold text-lg">{t.ui.smTitle}</h3>
         </div>
 
         <p className="text-blue-100 text-sm mb-4">
-          Scrie un mesaj aici și Kosi îl va rosti cu voce tare pe dispozitiv.
+          {t.ui.smDesc}
         </p>
 
         <form onSubmit={handleSend} className="mt-auto">
@@ -44,7 +44,7 @@ export default function SendMessageCard() {
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Ex: Hai la masă!..."
+              placeholder={t.ui.smPlaceholder}
               className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white placeholder-blue-200 focus:outline-none focus:bg-white/20 transition-all"
             />
             <button
@@ -62,7 +62,7 @@ export default function SendMessageCard() {
             {deliveryLabel(st)}
           </p>
         )}
-        {!state.deviceId && <p className="mt-2 text-xs text-blue-100">Conectează întâi un dispozitiv.</p>}
+        {!state.deviceId && <p className="mt-2 text-xs text-blue-100">{t.ui.needDevice}</p>}
       </div>
     </div>
   )

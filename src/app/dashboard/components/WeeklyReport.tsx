@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useDashboard } from "@/lib/DashboardContext"; // Folosim contextul
 
 export default function WeeklyReport() {
-  const { state } = useDashboard(); // Accesăm ID-ul corect din context
+  const { state, t } = useDashboard(); // Accesăm ID-ul corect din context
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +28,7 @@ export default function WeeklyReport() {
       }
 
       // Procesare date pentru grafic
-      const days = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
+      const days = t.ui.days;
       const chartData = days.map(d => ({ name: d, minute: 0 }));
 
       activities.forEach(act => {
@@ -51,13 +51,13 @@ export default function WeeklyReport() {
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-      <h3 className="text-lg font-bold text-slate-800 mb-6">Activitate Săptămânală</h3>
+      <h3 className="text-lg font-bold text-slate-800 mb-6">{t.ui.wkTitle}</h3>
       {loading ? (
-        <div className="h-64 flex items-center justify-center text-slate-400">Se încarcă raportul…</div>
+        <div className="h-64 flex items-center justify-center text-slate-400">{t.ui.wkLoading}</div>
       ) : !hasData ? (
         <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-1">
           <span className="text-3xl opacity-20">📊</span>
-          <p className="text-sm">Nicio activitate în ultimele 7 zile</p>
+          <p className="text-sm">{t.ui.wkEmpty}</p>
         </div>
       ) : (
       <div className="h-64 w-full">

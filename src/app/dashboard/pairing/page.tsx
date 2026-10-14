@@ -29,11 +29,11 @@ export default function PairingPage() {
   const handlePair = async () => {
     setMsg(null)
     if (!email) {
-      setMsg({ type: 'error', text: 'Nu ești autentificat. Intră cu linkul magic (pagina de login) și revino.' })
+      setMsg({ type: 'error', text: t.ui.pNotAuthed })
       return
     }
     if (digits.length < 3) {
-      setMsg({ type: 'error', text: 'Introdu cifrele codului de pe dispozitiv (ex: 4207).' })
+      setMsg({ type: 'error', text: t.ui.pEnterDigits })
       return
     }
     setLoading(true)
@@ -43,16 +43,16 @@ export default function PairingPage() {
         localStorage.setItem('kosi_device_id', res.device_id)
       }
       await refreshData()
-      toast.success('Dispozitiv conectat!')
-      setMsg({ type: 'ok', text: `Conectat la ${res?.child_name || 'dispozitiv'}.` })
+      toast.success(t.ui.pConnected)
+      setMsg({ type: 'ok', text: t.ui.pConnectedTo.replace('{name}', res?.child_name || 'dispozitiv') })
       setDigits('')
     } catch (err: any) {
       const m = String(err?.message || '')
-      let text = 'Nu am putut conecta dispozitivul.'
+      let text = t.ui.pGenericError
       if (/401|parinte invalida|autentificare/i.test(m)) {
-        text = 'Sesiune expirată — intră din nou cu linkul magic.'
+        text = t.ui.pSessionExpired
       } else if (/404|niciun device|acest cod/i.test(m)) {
-        text = `Codul KOSI-${digits} nu există. Verifică cifrele de pe ecranul dispozitivului.`
+        text = t.ui.pCodeNotFound.replace('{digits}', digits)
       } else if (m) {
         text = m
       }
@@ -84,7 +84,7 @@ export default function PairingPage() {
             className="w-full flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 py-3 rounded-xl transition-all font-medium border border-transparent hover:border-red-100"
           >
             <Unlink className="w-4 h-4" />
-            Deconectează Dispozitivul
+            {t.ui.pDisconnect}
           </button>
         </div>
       </div>
@@ -101,17 +101,17 @@ export default function PairingPage() {
         <div className="mb-5 flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-sm">
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <span>
-            Nu ești autentificat.{' '}
+            {t.ui.pBannerPre}{' '}
             <a href="/login" className="font-bold underline inline-flex items-center gap-1">
-              <LogIn className="w-4 h-4" /> Autentifică-te
+              <LogIn className="w-4 h-4" /> {t.ui.pLoginCta}
             </a>{' '}
-            ca să poți conecta dispozitivul.
+            {t.ui.pBannerPost}
           </span>
         </div>
       )}
       {email && (
         <div className="mb-5 flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
-          <CheckCircle className="w-4 h-4 shrink-0" /> Autentificat ca <span className="font-semibold">{email}</span>
+          <CheckCircle className="w-4 h-4 shrink-0" /> {t.ui.pAuthedAs} <span className="font-semibold">{email}</span>
         </div>
       )}
 
@@ -124,7 +124,7 @@ export default function PairingPage() {
 
         {/* Cod: prefix KOSI- fix, tastezi doar cifrele */}
         <div>
-          <label className="block text-sm font-medium text-slate-500 mb-2">Codul de pe ecranul dispozitivului</label>
+          <label className="block text-sm font-medium text-slate-500 mb-2">{t.ui.pCodeLabel}</label>
           <div className="flex items-stretch rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-500 overflow-hidden">
             <span className="flex items-center px-4 bg-slate-100 text-slate-500 text-2xl font-mono select-none">KOSI-</span>
             <input
@@ -137,7 +137,7 @@ export default function PairingPage() {
               className="flex-1 p-4 outline-none text-2xl text-center tracking-widest font-mono text-slate-800 placeholder:text-slate-300"
             />
           </div>
-          <p className="mt-2 text-xs text-slate-400">Scrie doar cifrele (ex: 4207). Partea „KOSI-" e deja pusă.</p>
+          <p className="mt-2 text-xs text-slate-400">{t.ui.pDigitsHint}</p>
         </div>
 
         {msg && (

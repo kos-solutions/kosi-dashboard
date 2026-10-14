@@ -67,7 +67,7 @@ export default function LiveActivityFeed() {
         }) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
                 <Activity size={32} className="mb-2" />
-                <p>Nicio activitate recentă</p>
+                <p>{t.ui.noneRecent}</p>
             </div>
         )}
       </div>
