@@ -27,8 +27,13 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   const { t, language, setLanguage } = useDashboard()
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/'
+    try {
+      await supabase.auth.signOut({ scope: 'local' })
+    } catch (e) {
+      console.error('signOut error', e)
+    } finally {
+      window.location.href = '/login'
+    }
   }
 
   const menuItems = [
